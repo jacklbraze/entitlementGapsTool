@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Account product query</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="wrap">
+      <h1>Unused purchased products</h1>
+      <p class="lede">
+        The first time you run a query for an email address, Snowflake may open
+        a browser to sign in. Later runs reuse that sign-in until it expires.
+      </p>
+
+      <form id="query-form" class="card">
+        <label>
+          <span>Email Address</span>
+          <input
+            type="email"
+            name="email"
+            autocomplete="username"
+            required
+            placeholder="you@company.com"
+          />
+        </label>
+        <label>
+          <span>Customer Name</span>
+          <input
+            type="text"
+            name="customerName"
+            required
+            placeholder="Exact account name"
+          />
+        </label>
+        <button type="submit" id="submit-btn">Run query</button>
+      </form>
+
+      <div id="status" class="status" hidden></div>
+
+      <section id="results-section" class="results" hidden>
+        <h2>Results</h2>
+        <div class="table-wrap">
+          <table id="results-table">
+            <thead id="results-head"></thead>
+            <tbody id="results-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
