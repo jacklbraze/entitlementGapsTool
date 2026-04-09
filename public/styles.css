@@ -71,16 +71,9 @@ h1 {
   font-weight: 600;
   margin: 0 0 0.5rem;
   letter-spacing: -0.02em;
-  background: linear-gradient(
-    105deg,
-    var(--light-orange) 0%,
-    var(--orange) 28%,
-    var(--pink) 62%,
-    var(--light-purple) 100%
-  );
   -webkit-background-clip: text;
   background-clip: text;
-  color: transparent;
+  color: floralwhite;
   text-shadow: none;
 }
 
@@ -101,7 +94,7 @@ h2 {
 .lede {
   color: var(--muted);
   margin: 0 0 1.5rem;
-  max-width: 52ch;
+  max-width: 100%;
 }
 
 .card {
