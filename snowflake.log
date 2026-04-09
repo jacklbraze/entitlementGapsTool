@@ -34,3 +34,63 @@
 {"level":"INFO","message":"[1:32:41.633 PM]: Easy Logging is disabled as no config has been found"}
 {"level":"INFO","message":"[1:32:48.302 PM]: Connection[id: 126c1dd8-69d7-4c90-909e-773275a5c2b7] - authentication successful using: EXTERNALBROWSER"}
 {"level":"INFO","message":"[1:32:48.647 PM]: Connection[id: 126c1dd8-69d7-4c90-909e-773275a5c2b7] - connection established successfully after 7017.42 milliseconds"}
+{"level":"INFO","message":"[1:37:44.551 PM]: Creating new connection object"}
+{"level":"INFO","message":"[1:37:44.588 PM]: Creating Connection[id: a28d7096-fd36-4f06-8b4e-9317cae97622] with host: BRAZE-XJ24206_AWS_US_EAST_1.snowflakecomputing.com, account: BRAZE-XJ24206_AWS_US_EAST_1, accessUrl: https://BRAZE-XJ24206_AWS_US_EAST_1.snowflakecomputing.com, user: jack.lerigo@braze.com, role: undefined, database: undefined, schema: undefined, warehouse: undefined, proxy was not configured, password is not provided, region: undefined, authenticator: EXTERNALBROWSER, ocsp mode: FAIL_OPEN, os: darwin, os version: 25.4.0"}
+{"level":"INFO","message":"[1:37:44.588 PM]: Connection[id: a28d7096-fd36-4f06-8b4e-9317cae97622] additional details: passcode in password is provided, passcode is not provided, private key is not provided, application: undefined, client name: snowflake-sdk, client version: 2.4.0, retry timeout: 300, private key path: undefined, private key pass is not provided, client store temporary credential: true, browser response timeout: 120000"}
+{"level":"INFO","message":"[1:37:44.589 PM]: Connection[id: a28d7096-fd36-4f06-8b4e-9317cae97622] - connection object created successfully."}
+{"level":"INFO","message":"[1:37:44.589 PM]: Connection[id: a28d7096-fd36-4f06-8b4e-9317cae97622] - async connecting. Associated Snowflake domain: GLOBAL"}
+{"level":"INFO","message":"[1:37:44.589 PM]: Custom credential manager is set by a user."}
+{"level":"INFO","message":"[1:37:44.608 PM]: Trying to initialize Easy Logging"}
+{"level":"INFO","message":"[1:37:44.609 PM]: No client config detected."}
+{"level":"INFO","message":"[1:37:44.609 PM]: No config file path found. Client config will not be used."}
+{"level":"INFO","message":"[1:37:44.609 PM]: Easy Logging is disabled as no config has been found"}
+{"level":"INFO","message":"[1:37:51.281 PM]: Connection[id: a28d7096-fd36-4f06-8b4e-9317cae97622] - authentication successful using: EXTERNALBROWSER"}
+{"level":"INFO","message":"[1:37:51.635 PM]: Connection[id: a28d7096-fd36-4f06-8b4e-9317cae97622] - connection established successfully after 7045.84 milliseconds"}
+{"level":"INFO","message":"[1:41:20.817 PM]: Creating new connection object"}
+{"level":"INFO","message":"[1:41:20.830 PM]: Creating Connection[id: 8ac62cfa-66a2-45b4-92fd-422349190fd3] with host: BRAZE-XJ24206_AWS_US_EAST_1.snowflakecomputing.com, account: BRAZE-XJ24206_AWS_US_EAST_1, accessUrl: https://BRAZE-XJ24206_AWS_US_EAST_1.snowflakecomputing.com, user: jack.lerigo@braze.com, role: undefined, database: undefined, schema: undefined, warehouse: undefined, proxy was not configured, password is not provided, region: undefined, authenticator: EXTERNALBROWSER, ocsp mode: FAIL_OPEN, os: darwin, os version: 25.4.0"}
+{"level":"INFO","message":"[1:41:20.830 PM]: Connection[id: 8ac62cfa-66a2-45b4-92fd-422349190fd3] additional details: passcode in password is provided, passcode is not provided, private key is not provided, application: undefined, client name: snowflake-sdk, client version: 2.4.0, retry timeout: 300, private key path: undefined, private key pass is not provided, client store temporary credential: true, browser response timeout: 120000"}
+{"level":"INFO","message":"[1:41:20.831 PM]: Connection[id: 8ac62cfa-66a2-45b4-92fd-422349190fd3] - connection object created successfully."}
+{"level":"INFO","message":"[1:41:20.831 PM]: Connection[id: 8ac62cfa-66a2-45b4-92fd-422349190fd3] - async connecting. Associated Snowflake domain: GLOBAL"}
+{"level":"INFO","message":"[1:41:20.831 PM]: Custom credential manager is set by a user."}
+{"level":"INFO","message":"[1:41:20.837 PM]: Trying to initialize Easy Logging"}
+{"level":"INFO","message":"[1:41:20.837 PM]: No client config detected."}
+{"level":"INFO","message":"[1:41:20.837 PM]: No config file path found. Client config will not be used."}
+{"level":"INFO","message":"[1:41:20.838 PM]: Easy Logging is disabled as no config has been found"}
+{"level":"INFO","message":"[1:41:26.475 PM]: Connection[id: 8ac62cfa-66a2-45b4-92fd-422349190fd3] - authentication successful using: EXTERNALBROWSER"}
+{"level":"INFO","message":"[1:41:26.728 PM]: Connection[id: 8ac62cfa-66a2-45b4-92fd-422349190fd3] - connection established successfully after 5897.32 milliseconds"}
+{"level":"INFO","message":"[1:43:34.143 PM]: Creating new connection object"}
+{"level":"INFO","message":"[1:43:34.155 PM]: Creating Connection[id: b157c87c-a162-4ada-9b0c-f03ae2151147] with host: BRAZE-XJ24206_AWS_US_EAST_1.snowflakecomputing.com, account: BRAZE-XJ24206_AWS_US_EAST_1, accessUrl: https://BRAZE-XJ24206_AWS_US_EAST_1.snowflakecomputing.com, user: jack.lerigo@braze.com, role: undefined, database: undefined, schema: undefined, warehouse: undefined, proxy was not configured, password is not provided, region: undefined, authenticator: EXTERNALBROWSER, ocsp mode: FAIL_OPEN, os: darwin, os version: 25.4.0"}
+{"level":"INFO","message":"[1:43:34.156 PM]: Connection[id: b157c87c-a162-4ada-9b0c-f03ae2151147] additional details: passcode in password is provided, passcode is not provided, private key is not provided, application: undefined, client name: snowflake-sdk, client version: 2.4.0, retry timeout: 300, private key path: undefined, private key pass is not provided, client store temporary credential: true, browser response timeout: 120000"}
+{"level":"INFO","message":"[1:43:34.156 PM]: Connection[id: b157c87c-a162-4ada-9b0c-f03ae2151147] - connection object created successfully."}
+{"level":"INFO","message":"[1:43:34.156 PM]: Connection[id: b157c87c-a162-4ada-9b0c-f03ae2151147] - async connecting. Associated Snowflake domain: GLOBAL"}
+{"level":"INFO","message":"[1:43:34.157 PM]: Custom credential manager is set by a user."}
+{"level":"INFO","message":"[1:43:34.161 PM]: Trying to initialize Easy Logging"}
+{"level":"INFO","message":"[1:43:34.162 PM]: No client config detected."}
+{"level":"INFO","message":"[1:43:34.162 PM]: No config file path found. Client config will not be used."}
+{"level":"INFO","message":"[1:43:34.162 PM]: Easy Logging is disabled as no config has been found"}
+{"level":"INFO","message":"[1:43:39.770 PM]: Connection[id: b157c87c-a162-4ada-9b0c-f03ae2151147] - authentication successful using: EXTERNALBROWSER"}
+{"level":"INFO","message":"[1:43:40.094 PM]: Connection[id: b157c87c-a162-4ada-9b0c-f03ae2151147] - connection established successfully after 5937.78 milliseconds"}
+{"level":"INFO","message":"[1:48:38.066 PM]: Creating new connection object"}
+{"level":"INFO","message":"[1:48:38.079 PM]: Creating Connection[id: 6e7fc639-83ee-4cae-835b-cf0f7a7ab3d3] with host: BRAZE-XJ24206_AWS_US_EAST_1.snowflakecomputing.com, account: BRAZE-XJ24206_AWS_US_EAST_1, accessUrl: https://BRAZE-XJ24206_AWS_US_EAST_1.snowflakecomputing.com, user: jack.lerigo@braze.com, role: undefined, database: undefined, schema: undefined, warehouse: undefined, proxy was not configured, password is not provided, region: undefined, authenticator: EXTERNALBROWSER, ocsp mode: FAIL_OPEN, os: darwin, os version: 25.4.0"}
+{"level":"INFO","message":"[1:48:38.080 PM]: Connection[id: 6e7fc639-83ee-4cae-835b-cf0f7a7ab3d3] additional details: passcode in password is provided, passcode is not provided, private key is not provided, application: undefined, client name: snowflake-sdk, client version: 2.4.0, retry timeout: 300, private key path: undefined, private key pass is not provided, client store temporary credential: true, browser response timeout: 120000"}
+{"level":"INFO","message":"[1:48:38.080 PM]: Connection[id: 6e7fc639-83ee-4cae-835b-cf0f7a7ab3d3] - connection object created successfully."}
+{"level":"INFO","message":"[1:48:38.080 PM]: Connection[id: 6e7fc639-83ee-4cae-835b-cf0f7a7ab3d3] - async connecting. Associated Snowflake domain: GLOBAL"}
+{"level":"INFO","message":"[1:48:38.081 PM]: Custom credential manager is set by a user."}
+{"level":"INFO","message":"[1:48:38.086 PM]: Trying to initialize Easy Logging"}
+{"level":"INFO","message":"[1:48:38.087 PM]: No client config detected."}
+{"level":"INFO","message":"[1:48:38.087 PM]: No config file path found. Client config will not be used."}
+{"level":"INFO","message":"[1:48:38.088 PM]: Easy Logging is disabled as no config has been found"}
+{"level":"INFO","message":"[1:48:44.548 PM]: Connection[id: 6e7fc639-83ee-4cae-835b-cf0f7a7ab3d3] - authentication successful using: EXTERNALBROWSER"}
+{"level":"INFO","message":"[1:48:44.812 PM]: Connection[id: 6e7fc639-83ee-4cae-835b-cf0f7a7ab3d3] - connection established successfully after 6731.82 milliseconds"}
+{"level":"INFO","message":"[1:49:10.262 PM]: Creating new connection object"}
+{"level":"INFO","message":"[1:49:10.273 PM]: Creating Connection[id: 73aa8188-8a1f-4ef6-bea6-59616b9e95d5] with host: BRAZE-XJ24206_AWS_US_EAST_1.snowflakecomputing.com, account: BRAZE-XJ24206_AWS_US_EAST_1, accessUrl: https://BRAZE-XJ24206_AWS_US_EAST_1.snowflakecomputing.com, user: jack.lerigo@braze.com, role: undefined, database: undefined, schema: undefined, warehouse: undefined, proxy was not configured, password is not provided, region: undefined, authenticator: EXTERNALBROWSER, ocsp mode: FAIL_OPEN, os: darwin, os version: 25.4.0"}
+{"level":"INFO","message":"[1:49:10.274 PM]: Connection[id: 73aa8188-8a1f-4ef6-bea6-59616b9e95d5] additional details: passcode in password is provided, passcode is not provided, private key is not provided, application: undefined, client name: snowflake-sdk, client version: 2.4.0, retry timeout: 300, private key path: undefined, private key pass is not provided, client store temporary credential: true, browser response timeout: 120000"}
+{"level":"INFO","message":"[1:49:10.274 PM]: Connection[id: 73aa8188-8a1f-4ef6-bea6-59616b9e95d5] - connection object created successfully."}
+{"level":"INFO","message":"[1:49:10.274 PM]: Connection[id: 73aa8188-8a1f-4ef6-bea6-59616b9e95d5] - async connecting. Associated Snowflake domain: GLOBAL"}
+{"level":"INFO","message":"[1:49:10.274 PM]: Custom credential manager is set by a user."}
+{"level":"INFO","message":"[1:49:10.279 PM]: Trying to initialize Easy Logging"}
+{"level":"INFO","message":"[1:49:10.280 PM]: No client config detected."}
+{"level":"INFO","message":"[1:49:10.280 PM]: No config file path found. Client config will not be used."}
+{"level":"INFO","message":"[1:49:10.280 PM]: Easy Logging is disabled as no config has been found"}
+{"level":"INFO","message":"[1:49:15.495 PM]: Connection[id: 73aa8188-8a1f-4ef6-bea6-59616b9e95d5] - authentication successful using: EXTERNALBROWSER"}
+{"level":"INFO","message":"[1:49:15.871 PM]: Connection[id: 73aa8188-8a1f-4ef6-bea6-59616b9e95d5] - connection established successfully after 5597.19 milliseconds"}

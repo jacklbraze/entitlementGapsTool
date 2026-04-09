@@ -1,0 +1,48 @@
+diff --git a/node_modules/snowflake-sdk/dist/lib/authentication/authentication_util.js b/node_modules/snowflake-sdk/dist/lib/authentication/authentication_util.js
+index fe415a1..839c915 100644
+--- a/node_modules/snowflake-sdk/dist/lib/authentication/authentication_util.js
++++ b/node_modules/snowflake-sdk/dist/lib/authentication/authentication_util.js
+@@ -5,7 +5,33 @@ const { exists, format, escapeHTML, buildCredentialCacheKey } = require('../util
+ const Logger = require('../logger');
+ const GlobalConfig = require('../global_config');
+ const responseHeadersAsString = 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n';
+-const successResponse = 'Your identity was confirmed and propagated to Snowflake Node.js driver. You can close this window now and go back where you started from.';
++// Patched (unused-product-features): HTML page auto-closes tab and refocuses opener when possible.
++const successResponseHtmlHeaders = 'HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nConnection: close\r\n\r\n';
++const successResponseHtmlBody = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Signed in to Snowflake</title></head><body>
++<p>Your identity was confirmed and propagated to Snowflake Node.js driver. This window should close automatically.</p>
++<script>
++(function () {
++  try {
++    if (window.opener && !window.opener.closed) {
++      window.opener.focus();
++    }
++  } catch (e) {}
++  function tryClose() {
++    try {
++      window.close();
++    } catch (e) {}
++    try {
++      if (window.top) window.top.close();
++    } catch (e) {}
++  }
++  tryClose();
++  setTimeout(tryClose, 50);
++  setTimeout(tryClose, 200);
++  setTimeout(tryClose, 500);
++  setTimeout(tryClose, 1500);
++})();
++</script>
++</body></html>`;
+ const SNOWFLAKE_DOMAIN_REGEX = /(^|\.)snowflakecomputing\.(com|cn)/;
+ /**
+  * Create server to retrieve SAML token.
+@@ -31,7 +57,7 @@ function createServer(resolve, reject) {
+             }
+             else {
+                 // User successfully entered credentials
+-                socket.write(`${responseHeadersAsString} ${escapeHTML(successResponse)}`, 'utf8');
++                socket.write(successResponseHtmlHeaders + successResponseHtmlBody, 'utf8');
+                 socket.destroy();
+                 server.close();
+                 Logger.getInstance().trace('User successfully entered authorization code');

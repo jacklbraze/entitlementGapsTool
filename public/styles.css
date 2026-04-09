@@ -66,6 +66,35 @@ body {
   padding: 2rem 1.25rem 3rem;
 }
 
+.site-header {
+  margin-bottom: 1.35rem;
+}
+
+.brand-link {
+  display: inline-block;
+  line-height: 0;
+  border-radius: 6px;
+  transition: opacity 0.15s ease;
+}
+
+.brand-link:hover {
+  opacity: 0.9;
+}
+
+.brand-link:focus-visible {
+  outline: 2px solid var(--pink);
+  outline-offset: 4px;
+}
+
+.brand-logo {
+  display: block;
+  width: min(200px, 58vw);
+  height: auto;
+  max-height: 52px;
+  object-fit: contain;
+  object-position: left center;
+}
+
 h1 {
   font-size: 1.625rem;
   font-weight: 600;
