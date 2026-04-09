@@ -37,7 +37,7 @@ function escapeSqlString(value) {
 function buildQuery(customerName) {
   const safeName = escapeSqlString(customerName);
   return `SELECT ACCOUNT_ID, ACCOUNT_NAME, PRODUCT, IS_PURCHASED ,IS_USING FROM growth_braze_foundations.consumption.account_fusion_mart_product_detail
-WHERE ACCOUNT_NAME = '${safeName}' AND IS_PURCHASED = TRUE AND IS_USING = FALSE;`;
+WHERE ACCOUNT_NAME = '${safeName}';`;
 }
 
 const DEFAULT_COLUMNS = [
