@@ -10,8 +10,9 @@
     <main class="wrap">
       <h1>Unused purchased products</h1>
       <p class="lede">
-        The first time you run a query for an email address, Snowflake may open
-        a browser to sign in. Later runs reuse that sign-in until it expires.
+        The app keeps a single Snowflake session open while this server runs.
+        Okta opens in the browser only when a new session is created (first query
+        for an email, or after a restart or session timeout).
       </p>
 
       <form id="query-form" class="card">

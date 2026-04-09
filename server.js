@@ -1,15 +1,11 @@
-import { spawn } from "node:child_process";
-import { unlink } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { randomUUID } from "node:crypto";
 import express from "express";
-import { parse } from "csv-parse/sync";
+import snowflake from "snowflake-sdk";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SNOW_ACCOUNT = "BRAZE-XJ24206_AWS_US_EAST_1";
-const OUTPUT_DIR = path.join(__dirname, "query-output");
 const AUTH_KEYS_FILE = path.join(__dirname, "snowflake-auth-keys.json");
 
 function authKey(email) {
@@ -52,81 +48,122 @@ const DEFAULT_COLUMNS = [
   "IS_USING",
 ];
 
-async function parseCsvFile(filePath) {
-  const content = await readFile(filePath, "utf8");
-  const matrix = parse(content, {
-    skip_empty_lines: true,
-    trim: true,
-    relax_column_count: true,
-  });
-  if (matrix.length === 0) {
-    return { columns: [...DEFAULT_COLUMNS], rows: [] };
-  }
-  const headers = matrix[0].map((h) => String(h).trim());
-  const rows = matrix.slice(1).map((cells) => {
-    const row = {};
-    for (let i = 0; i < headers.length; i++) {
-      const key = headers[i] || `column_${i}`;
-      row[key] = cells[i] ?? "";
-    }
-    return row;
-  });
-  return { columns: headers, rows };
+function formatCell(value) {
+  if (value === null || value === undefined) return "";
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
 }
 
-function runSnowsql(email, query, outputPath) {
-  return new Promise((resolve, reject) => {
-    const args = [
-      "-a",
-      SNOW_ACCOUNT,
-      "-u",
-      email,
-      "--authenticator",
-      "externalbrowser",
-      "-o",
-      "client_store_temporary_credential=true",
-      "-o",
-      "output_format=csv",
-      "-o",
-      "header=true",
-      "-o",
-      "timing=false",
-      "-o",
-      "friendly=false",
-      "-o",
-      `output_file=${outputPath}`,
-      "-q",
-      query,
-    ];
-    const child = spawn("snowsql", args, {
-      stdio: ["ignore", "pipe", "pipe"],
-      env: process.env,
-    });
-    let stderr = "";
-    child.stderr?.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-    child.on("error", (err) => {
-      if (err.code === "ENOENT") {
-        reject(
-          new Error(
-            "snowsql was not found. Install SnowSQL and ensure it is on your PATH."
-          )
-        );
-      } else {
-        reject(err);
+/** One live Snowflake connection per server process (per email). Avoids spawning snowsql, which re-runs Okta every time. */
+let activeEmail = null;
+let activeConnection = null;
+
+function destroyConnection(conn) {
+  return new Promise((resolve) => {
+    if (!conn) {
+      resolve();
+      return;
+    }
+    try {
+      conn.destroy(() => resolve());
+    } catch {
+      resolve();
+    }
+  });
+}
+
+async function ensureSnowflakeConnection(email) {
+  if (activeEmail !== email) {
+    await destroyConnection(activeConnection);
+    activeConnection = null;
+    activeEmail = email;
+  }
+
+  if (activeConnection?.isUp()) {
+    try {
+      if (await activeConnection.isValidAsync()) {
+        return activeConnection;
       }
-    });
-    child.on("close", (code) => {
-      if (code === 0) resolve();
-      else
-        reject(
-          new Error(
-            stderr.trim() || `snowsql exited with code ${code ?? "unknown"}`
-          )
-        );
+    } catch {
+      /* reconnect */
+    }
+    await destroyConnection(activeConnection);
+    activeConnection = null;
+  }
+
+  const conn = snowflake.createConnection({
+    account: SNOW_ACCOUNT,
+    username: email,
+    authenticator: "EXTERNALBROWSER",
+    clientSessionKeepAlive: true,
+    clientStoreTemporaryCredential: true,
+  });
+
+  await conn.connectAsync();
+  activeConnection = conn;
+  return conn;
+}
+
+let opQueue = Promise.resolve();
+
+function runSerialized(fn) {
+  const result = opQueue.then(() => fn());
+  opQueue = result.catch(() => {});
+  return result;
+}
+
+function executeSql(conn, sqlText) {
+  return new Promise((resolve, reject) => {
+    conn.execute({
+      sqlText: sqlText,
+      complete: (err, stmt, rows) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        const rowList = rows ?? [];
+        const colsFromStmt = stmt.getColumns()?.map((c) => c.getName());
+        const columns =
+          colsFromStmt?.length > 0
+            ? colsFromStmt
+            : rowList.length > 0
+              ? Object.keys(rowList[0])
+              : [...DEFAULT_COLUMNS];
+
+        const normalized = rowList.map((row) => {
+          const obj = {};
+          for (const col of columns) {
+            obj[col] = formatCell(row[col]);
+          }
+          return obj;
+        });
+
+        resolve({ columns, rows: normalized });
+      },
     });
   });
+}
+
+async function runSnowflakeQuery(email, sqlText) {
+  const conn = await ensureSnowflakeConnection(email);
+  try {
+    return await executeSql(conn, sqlText);
+  } catch (err) {
+    const msg = err && typeof err === "object" && "message" in err ? String(err.message) : String(err);
+    const sessionLikelyDead =
+      /390114|390100|session expired|JWT token is invalid|Connection already terminated|not connected/i.test(
+        msg
+      );
+    if (sessionLikelyDead) {
+      await destroyConnection(activeConnection);
+      activeConnection = null;
+      const conn2 = await ensureSnowflakeConnection(email);
+      return executeSql(conn2, sqlText);
+    }
+    throw err;
+  }
 }
 
 const establishedAuthKeys = await loadEstablishedAuthKeys();
@@ -140,8 +177,11 @@ app.get("/api/session", (req, res) => {
   if (!email) {
     return res.status(400).json({ error: "Query parameter email is required." });
   }
+  const key = authKey(email);
+  const hasFileRecord = establishedAuthKeys.has(key);
+  const liveForEmail = activeEmail === email && activeConnection?.isUp();
   res.json({
-    snowflakeSessionReused: establishedAuthKeys.has(authKey(email)),
+    snowflakeSessionReused: hasFileRecord || Boolean(liveForEmail),
   });
 });
 
@@ -159,25 +199,23 @@ app.post("/api/query", async (req, res) => {
     return res.status(400).json({ error: "Customer Name is required." });
   }
 
-  await mkdir(OUTPUT_DIR, { recursive: true });
-  const outputFile = `account_output_${randomUUID()}.csv`;
-  const outputPath = path.join(OUTPUT_DIR, outputFile);
   const query = buildQuery(customerName);
   const key = authKey(email);
-  const snowflakeSessionReused = establishedAuthKeys.has(key);
+  const snowflakeSessionReused =
+    establishedAuthKeys.has(key) || (activeEmail === email && activeConnection?.isUp());
 
   try {
-    await runSnowsql(email, query, outputPath);
-    const { columns, rows } = await parseCsvFile(outputPath);
-    unlink(outputPath, () => {});
+    const { columns, rows } = await runSerialized(() => runSnowflakeQuery(email, query));
     if (!establishedAuthKeys.has(key)) {
       establishedAuthKeys.add(key);
       await persistAuthKeys(establishedAuthKeys);
     }
     res.json({ columns, rows, snowflakeSessionReused });
   } catch (err) {
-    unlink(outputPath, () => {});
-    const message = err instanceof Error ? err.message : String(err);
+    const message =
+      err && typeof err === "object" && "message" in err
+        ? String(err.message)
+        : "Snowflake query failed.";
     res.status(500).json({ error: message });
   }
 });
@@ -185,4 +223,7 @@ app.post("/api/query", async (req, res) => {
 const port = Number(process.env.PORT) || 3000;
 app.listen(port, () => {
   console.log(`Open http://localhost:${port}`);
+  console.log(
+    "Using Snowflake Node.js driver with a persistent connection (Okta opens once per email until the server restarts or the session ends)."
+  );
 });

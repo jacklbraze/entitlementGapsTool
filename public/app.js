@@ -71,7 +71,7 @@ form.addEventListener("submit", async (e) => {
   submitBtn.disabled = true;
 
   let waitMessage =
-    "Running snowsql… If a browser opens, complete sign-in (first time for this email on this app).";
+    "Running query… If a browser opens, complete Okta sign-in (new Snowflake session for this email).";
   try {
     const sessionRes = await fetch(
       `/api/session?email=${encodeURIComponent(email)}`
@@ -80,7 +80,7 @@ form.addEventListener("submit", async (e) => {
       const session = await sessionRes.json();
       if (session.snowflakeSessionReused) {
         waitMessage =
-          "Running snowsql… Using your saved Snowflake session (browser usually stays closed until the session expires).";
+          "Running query… Reusing the open Snowflake session (no browser expected).";
       }
     }
   } catch {
