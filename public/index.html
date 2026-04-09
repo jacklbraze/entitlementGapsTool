@@ -40,6 +40,49 @@
 
       <section id="results-section" class="results" hidden>
         <h2>Results</h2>
+        <div id="results-filters" class="results-filters" hidden>
+          <span class="results-filters-title">Filter rows</span>
+          <div class="results-filters-row">
+            <div class="results-filters-group" data-filter-for="IS_PURCHASED">
+              <span class="results-filters-heading">IS_PURCHASED</span>
+              <label class="results-filters-option">
+                <input
+                  type="checkbox"
+                  data-filter-field="IS_PURCHASED"
+                  data-filter-value="TRUE"
+                />
+                TRUE
+              </label>
+              <label class="results-filters-option">
+                <input
+                  type="checkbox"
+                  data-filter-field="IS_PURCHASED"
+                  data-filter-value="FALSE"
+                />
+                FALSE
+              </label>
+            </div>
+            <div class="results-filters-group" data-filter-for="IS_USING">
+              <span class="results-filters-heading">IS_USING</span>
+              <label class="results-filters-option">
+                <input
+                  type="checkbox"
+                  data-filter-field="IS_USING"
+                  data-filter-value="TRUE"
+                />
+                TRUE
+              </label>
+              <label class="results-filters-option">
+                <input
+                  type="checkbox"
+                  data-filter-field="IS_USING"
+                  data-filter-value="FALSE"
+                />
+                FALSE
+              </label>
+            </div>
+          </div>
+        </div>
         <div class="table-wrap">
           <table id="results-table">
             <thead id="results-head"></thead>
