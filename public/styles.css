@@ -212,6 +212,64 @@ button:disabled {
   margin-top: 2rem;
 }
 
+.results-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 0.85rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+}
+
+.results-filters-title {
+  flex: 1 0 100%;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.results-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem 2rem;
+}
+
+.results-filters-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.results-filters-heading {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--light-pink);
+  margin-right: 0.25rem;
+}
+
+.results-filters-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.results-filters-option input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--purple);
+  cursor: pointer;
+}
+
 .table-wrap {
   overflow: auto;
   border: 1px solid var(--border-strong);
@@ -243,6 +301,66 @@ th {
   white-space: nowrap;
   color: var(--light-pink);
   border-bottom-color: color-mix(in srgb, var(--pink) 25%, transparent);
+}
+
+th.th-sort {
+  padding: 0;
+  vertical-align: bottom;
+}
+
+.th-sort-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.65rem 0.9rem;
+  border: none;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease;
+}
+
+.th-sort-btn:hover {
+  background: color-mix(in srgb, var(--pink) 12%, transparent);
+}
+
+.th-sort-btn:focus-visible {
+  outline: 2px solid var(--pink);
+  outline-offset: -2px;
+}
+
+.th-sort-btn .sort-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.th-sort-btn .sort-indicators {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  line-height: 1;
+  font-size: 0.55rem;
+  opacity: 0.45;
+  flex-shrink: 0;
+}
+
+.th-sort-btn[aria-sort="ascending"] .sort-indicators .sort-up,
+.th-sort-btn[aria-sort="descending"] .sort-indicators .sort-down {
+  opacity: 1;
+  color: var(--orange);
+}
+
+.th-sort-btn[aria-sort="none"] .sort-indicators {
+  opacity: 0.35;
 }
 
 tr:last-child td {
