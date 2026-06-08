@@ -41,6 +41,26 @@ function parseBoolCell(val) {
   return s || "";
 }
 
+/** True when the cell should be treated as “no / false” for filtering (null, blank, or CSV NULL). */
+function isEmptyOrNullishBoolCell(cellValue) {
+  if (cellValue === null || cellValue === undefined) return true;
+  const s = String(cellValue).trim();
+  if (s === "") return true;
+  if (s.toUpperCase() === "NULL") return true;
+  return false;
+}
+
+/**
+ * Row passes the checkbox filter when its value is in `allowed`, or when FALSE is selected and the cell is empty/null.
+ */
+function cellMatchesAllowedBools(cellValue, allowed) {
+  if (!allowed || allowed.length === 0) return true;
+  const v = parseBoolCell(cellValue);
+  if (allowed.includes(v)) return true;
+  if (allowed.includes("FALSE") && isEmptyOrNullishBoolCell(cellValue)) return true;
+  return false;
+}
+
 function getAllowedFilterValues(fieldLogicalName) {
   const boxes = resultsFiltersEl.querySelectorAll(
     `input[type="checkbox"][data-filter-field="${fieldLogicalName}"]`
@@ -58,15 +78,13 @@ function applyRowFilters(rows) {
     if (colPurchased) {
       const allowed = getAllowedFilterValues("IS_PURCHASED");
       if (allowed && allowed.length > 0) {
-        const v = parseBoolCell(row[colPurchased]);
-        if (!allowed.includes(v)) return false;
+        if (!cellMatchesAllowedBools(row[colPurchased], allowed)) return false;
       }
     }
     if (colUsing) {
       const allowed = getAllowedFilterValues("IS_USING");
       if (allowed && allowed.length > 0) {
-        const v = parseBoolCell(row[colUsing]);
-        if (!allowed.includes(v)) return false;
+        if (!cellMatchesAllowedBools(row[colUsing], allowed)) return false;
       }
     }
     return true;
@@ -254,7 +272,7 @@ form.addEventListener("submit", async (e) => {
     if (sessionRes.ok) {
       const session = await sessionRes.json();
       if (session.snowflakeSessionReused) {
-        waitMessage = "Running query, please wait a few seconds...";
+        waitMessage = "Running query, please wait a few seconds... If a new tab opens, complete Okta sign-in";
       }
     }
   } catch {
