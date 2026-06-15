@@ -1,5 +1,5 @@
 1. Download the entire zip and unzip
-2. Navigate to the directory in terminal and type `npm start`
+2. Navigate to the directory in terminal and type `node server.js`
 3. Open `http://localhost:3000` in chrome
 4. Enter your Braze email address and customer name as it appears in Salesforce e.g. "King.com Limited"
 5. Click run query
