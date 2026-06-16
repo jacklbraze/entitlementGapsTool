@@ -97,6 +97,7 @@ async function ensureSnowflakeConnection(email) {
     account: SNOW_ACCOUNT,
     username: email,
     authenticator: "EXTERNALBROWSER",
+    warehouse: "DATALAKE_USER_PROFILE_RESYNC_PRODUCTION",
     clientSessionKeepAlive: true,
     clientStoreTemporaryCredential: true,
   });
