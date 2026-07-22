@@ -1,12 +1,47 @@
 const form = document.getElementById("query-form");
 const statusEl = document.getElementById("status");
 const resultsSection = document.getElementById("results-section");
+const companySummaryEl = document.getElementById("company-summary");
 const resultsFiltersEl = document.getElementById("results-filters");
 const resultsHead = document.getElementById("results-head");
 const resultsBody = document.getElementById("results-body");
 const submitBtn = document.getElementById("submit-btn");
 
-/** @type {{ columns: string[], rows: Record<string, string>[], sortColumn: string | null, sortDir: 'asc' | 'desc' }} */
+const appGroupsHead = document.getElementById("app-groups-head");
+const appGroupsBody = document.getElementById("app-groups-body");
+const appGroupsCount = document.getElementById("app-groups-count");
+
+const appGroupsDsHead = document.getElementById("app-groups-ds-head");
+const appGroupsDsBody = document.getElementById("app-groups-ds-body");
+const appGroupsDsCount = document.getElementById("app-groups-ds-count");
+
+const partnerIntegrationsHead = document.getElementById("partner-integrations-head");
+const partnerIntegrationsBody = document.getElementById("partner-integrations-body");
+const partnerIntegrationsCount = document.getElementById("partner-integrations-count");
+
+const billableElementsHead = document.getElementById("billable-elements-head");
+const billableElementsBody = document.getElementById("billable-elements-body");
+const billableElementsCount = document.getElementById("billable-elements-count");
+
+const featureFlipperHead = document.getElementById("feature-flipper-head");
+const featureFlipperBody = document.getElementById("feature-flipper-body");
+const featureFlipperCount = document.getElementById("feature-flipper-count");
+const featureFlipperSearchEl = document.getElementById("feature-flipper-search");
+
+/** Preferred left-to-right column order for the primary product_detail table; anything else found in the data is appended after. */
+const PRODUCT_DETAIL_PREFERRED_COLUMNS = [
+  "ACCOUNT_ID",
+  "ACCOUNT_NAME",
+  "PRODUCT",
+  "ALLOTMENT",
+  "IS_PURCHASED",
+  "IS_USING",
+  "CHANNEL_USAGE",
+];
+
+let featureFlipperRows = [];
+
+/** @type {{ columns: string[], rows: Record<string, unknown>[], sortColumn: string | null, sortDir: 'asc' | 'desc' }} */
 const resultsState = {
   columns: [],
   rows: [],
@@ -24,6 +59,43 @@ function clearStatus() {
   statusEl.hidden = true;
   statusEl.textContent = "";
   statusEl.className = "status";
+}
+
+function escapeHtml(value) {
+  return String(value).replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
+  );
+}
+
+/** Renders any JS value (boolean/number/string/null/object) as display text, consistently across every table in the app. */
+function formatCellValue(v) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "boolean") return v ? "TRUE" : "FALSE";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+
+/** Union of every key seen across a list of row objects, in first-seen order. */
+function collectColumns(rows) {
+  const seen = new Set();
+  const columns = [];
+  for (const row of rows) {
+    for (const key of Object.keys(row ?? {})) {
+      if (!seen.has(key)) {
+        seen.add(key);
+        columns.push(key);
+      }
+    }
+  }
+  return columns;
+}
+
+function orderedColumns(rows, preferred) {
+  const union = collectColumns(rows);
+  const ordered = preferred.filter((c) => union.includes(c));
+  const extras = union.filter((c) => !preferred.includes(c));
+  return [...ordered, ...extras];
 }
 
 function findColumnKey(columns, name) {
@@ -143,8 +215,7 @@ function renderTableBody(columns, rows) {
     const tr = document.createElement("tr");
     for (const col of columns) {
       const td = document.createElement("td");
-      const v = row[col];
-      td.textContent = v === null || v === undefined ? "" : String(v);
+      td.textContent = formatCellValue(row[col]);
       tr.appendChild(td);
     }
     resultsBody.appendChild(tr);
@@ -221,14 +292,13 @@ function refreshResultsView() {
   renderTableBody(resultsState.columns, sorted);
 }
 
-function renderTable(columns, rows) {
-  resultsState.columns = columns;
+function renderProductDetailTable(rows) {
+  resultsState.columns = orderedColumns(rows, PRODUCT_DETAIL_PREFERRED_COLUMNS);
   resultsState.rows = rows;
   resultsState.sortColumn = null;
   resultsState.sortDir = "asc";
   clearFilterCheckboxes();
   refreshResultsView();
-  resultsSection.hidden = false;
 }
 
 resultsHead.addEventListener("click", (e) => {
@@ -251,6 +321,162 @@ resultsFiltersEl.addEventListener("change", (e) => {
     refreshResultsView();
   }
 });
+
+/** Generic, read-only table renderer used for every non-primary section (app groups, feature flags, etc). */
+function renderGenericTable(headEl, bodyEl, countEl, rows, preferredColumns = []) {
+  const columns = orderedColumns(rows, preferredColumns);
+  headEl.innerHTML = "";
+  bodyEl.innerHTML = "";
+  if (countEl) countEl.textContent = String(rows.length);
+
+  if (!columns.length) {
+    bodyEl.innerHTML = '<tr><td><p class="empty-hint">No data returned for this section.</p></td></tr>';
+    return;
+  }
+
+  const headerRow = document.createElement("tr");
+  for (const col of columns) {
+    const th = document.createElement("th");
+    th.textContent = col;
+    headerRow.appendChild(th);
+  }
+  headEl.appendChild(headerRow);
+
+  if (!rows.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = columns.length;
+    td.innerHTML = '<p class="empty-hint">No rows returned for this section.</p>';
+    tr.appendChild(td);
+    bodyEl.appendChild(tr);
+    return;
+  }
+
+  for (const row of rows) {
+    const tr = document.createElement("tr");
+    for (const col of columns) {
+      const td = document.createElement("td");
+      td.textContent = formatCellValue(row[col]);
+      tr.appendChild(td);
+    }
+    bodyEl.appendChild(tr);
+  }
+}
+
+function renderCompanySummary(companyInfoRows) {
+  const info = companyInfoRows[0];
+  if (!info) {
+    companySummaryEl.hidden = true;
+    companySummaryEl.innerHTML = "";
+    return;
+  }
+
+  const fields = [
+    ["Company", info.COMPANY_NAME],
+    ["Salesforce Account", info.SALESFORCE_ACCOUNT],
+    ["CFID", info.CFID],
+    ["SFID", info.SFID],
+    ["Cluster", info.CLUSTER],
+    ["Territory", info.TERRITORY_V3],
+    ["Billing Country", info.BILLINGCOUNTRY],
+    ["Success Manager", info.SUCCESS_MANAGER_NAME],
+  ];
+
+  companySummaryEl.innerHTML = fields
+    .filter(([, value]) => value !== null && value !== undefined && value !== "")
+    .map(
+      ([label, value]) =>
+        `<div class="company-summary-item"><span class="company-summary-label">${escapeHtml(
+          label
+        )}</span><span class="company-summary-value">${escapeHtml(formatCellValue(value))}</span></div>`
+    )
+    .join("");
+  companySummaryEl.hidden = false;
+}
+
+featureFlipperSearchEl.addEventListener("input", () => {
+  const q = featureFlipperSearchEl.value.trim().toLowerCase();
+  const filtered = q
+    ? featureFlipperRows.filter((row) => String(row.NAME ?? "").toLowerCase().includes(q))
+    : featureFlipperRows;
+  renderGenericTable(featureFlipperHead, featureFlipperBody, featureFlipperCount, filtered, [
+    "NAME",
+    "STATUS",
+    "DATE",
+    "DS_ID",
+    "D_ID",
+    "REFRESHED_AT",
+  ]);
+});
+
+function renderUsage(usage) {
+  renderCompanySummary(usage.company_info ?? []);
+  renderProductDetailTable(usage.product_detail ?? []);
+
+  renderGenericTable(appGroupsHead, appGroupsBody, appGroupsCount, usage.app_groups ?? [], [
+    "APP_GROUP_NAME",
+    "AG_ID",
+    "EID",
+    "SDK_CONFIGURATION_LAST_UPDATED",
+    "CURRENTS_INTEGRATIONS_ENTITLEMENTS",
+    "CURRENTS_INTEGRATIONS_USER_BEHAVIOR_ENTITLEMENTS",
+    "DATASHARE_INTEGRATIONS_ENTITLEMENTS",
+    "DATASHARE_INTEGRATIONS_CRR_ENTITLEMENTS",
+    "REFRESHED_AT",
+  ]);
+
+  renderGenericTable(appGroupsDsHead, appGroupsDsBody, appGroupsDsCount, usage.app_groups_ds ?? [], [
+    "APP_GROUP_NAME",
+    "AG_ID",
+    "DATE",
+    "TOTAL_USERS",
+    "MESSAGED_USERS",
+    "DAU",
+    "MAU",
+    "W_MAU",
+    "M_MAU",
+    "BILLABLE_USERS",
+    "REFRESHED_AT",
+  ]);
+
+  renderGenericTable(
+    partnerIntegrationsHead,
+    partnerIntegrationsBody,
+    partnerIntegrationsCount,
+    usage.partner_integrations ?? [],
+    [
+      "APP_GROUP_NAME",
+      "AG_ID",
+      "PARTNER",
+      "PARTNER_CLASS",
+      "IS_ACTIVE",
+      "CONNECTION_COUNT",
+      "FIRST_CONNECTION",
+      "MOST_RECENT_CONNECTION",
+    ]
+  );
+
+  renderGenericTable(
+    billableElementsHead,
+    billableElementsBody,
+    billableElementsCount,
+    usage.billable_elements ?? [],
+    ["APP_GROUP_NAME", "AG_ID", "ACTIVE_CURRENTS_INTEGRATIONS", "PARTNER_INTEGRATION_LIST"]
+  );
+
+  featureFlipperRows = usage.feature_flipper ?? [];
+  featureFlipperSearchEl.value = "";
+  renderGenericTable(featureFlipperHead, featureFlipperBody, featureFlipperCount, featureFlipperRows, [
+    "NAME",
+    "STATUS",
+    "DATE",
+    "DS_ID",
+    "D_ID",
+    "REFRESHED_AT",
+  ]);
+
+  resultsSection.hidden = false;
+}
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -294,7 +520,7 @@ form.addEventListener("submit", async (e) => {
     }
 
     clearStatus();
-    renderTable(data.columns || [], data.rows || []);
+    renderUsage(data.usage || {});
   } catch (err) {
     showStatus(
       err instanceof Error ? err.message : "Network error.",

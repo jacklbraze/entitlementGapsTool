@@ -56,55 +56,117 @@
 
       <section id="results-section" class="results" hidden>
         <h2>Results</h2>
-        <div id="results-filters" class="results-filters" hidden>
-          <span class="results-filters-title">Filter rows</span>
-          <div class="results-filters-row">
-            <div class="results-filters-group" data-filter-for="IS_PURCHASED">
-              <span class="results-filters-heading">PURCHASED FEATURE</span>
-              <label class="results-filters-option">
-                <input
-                  type="checkbox"
-                  data-filter-field="IS_PURCHASED"
-                  data-filter-value="TRUE"
-                />
-                TRUE
-              </label>
-              <label class="results-filters-option">
-                <input
-                  type="checkbox"
-                  data-filter-field="IS_PURCHASED"
-                  data-filter-value="FALSE"
-                />
-                FALSE
-              </label>
-            </div>
-            <div class="results-filters-group" data-filter-for="IS_USING">
-              <span class="results-filters-heading">USING FEATURE</span>
-              <label class="results-filters-option">
-                <input
-                  type="checkbox"
-                  data-filter-field="IS_USING"
-                  data-filter-value="TRUE"
-                />
-                TRUE
-              </label>
-              <label class="results-filters-option">
-                <input
-                  type="checkbox"
-                  data-filter-field="IS_USING"
-                  data-filter-value="FALSE"
-                />
-                FALSE
-              </label>
+
+        <div id="company-summary" class="company-summary" hidden></div>
+
+        <div class="results-block">
+          <h3>Product Entitlements</h3>
+          <div id="results-filters" class="results-filters" hidden>
+            <span class="results-filters-title">Filter rows</span>
+            <div class="results-filters-row">
+              <div class="results-filters-group" data-filter-for="IS_PURCHASED">
+                <span class="results-filters-heading">PURCHASED FEATURE</span>
+                <label class="results-filters-option">
+                  <input
+                    type="checkbox"
+                    data-filter-field="IS_PURCHASED"
+                    data-filter-value="TRUE"
+                  />
+                  TRUE
+                </label>
+                <label class="results-filters-option">
+                  <input
+                    type="checkbox"
+                    data-filter-field="IS_PURCHASED"
+                    data-filter-value="FALSE"
+                  />
+                  FALSE
+                </label>
+              </div>
+              <div class="results-filters-group" data-filter-for="IS_USING">
+                <span class="results-filters-heading">USING FEATURE</span>
+                <label class="results-filters-option">
+                  <input
+                    type="checkbox"
+                    data-filter-field="IS_USING"
+                    data-filter-value="TRUE"
+                  />
+                  TRUE
+                </label>
+                <label class="results-filters-option">
+                  <input
+                    type="checkbox"
+                    data-filter-field="IS_USING"
+                    data-filter-value="FALSE"
+                  />
+                  FALSE
+                </label>
+              </div>
             </div>
           </div>
+          <div class="table-wrap">
+            <table id="results-table">
+              <thead id="results-head"></thead>
+              <tbody id="results-body"></tbody>
+            </table>
+          </div>
         </div>
-        <div class="table-wrap">
-          <table id="results-table">
-            <thead id="results-head"></thead>
-            <tbody id="results-body"></tbody>
-          </table>
-        </div>
+
+        <details class="results-block collapsible" id="app-groups-block">
+          <summary>Currents/Data Sharing <span class="count-badge" id="app-groups-count">0</span></summary>
+          <div class="table-wrap">
+            <table>
+              <thead id="app-groups-head"></thead>
+              <tbody id="app-groups-body"></tbody>
+            </table>
+          </div>
+
+          <h4 class="subsection-heading">
+            Partner Integrations <span class="count-badge" id="partner-integrations-count">0</span>
+          </h4>
+          <div class="table-wrap">
+            <table>
+              <thead id="partner-integrations-head"></thead>
+              <tbody id="partner-integrations-body"></tbody>
+            </table>
+          </div>
+
+          <h4 class="subsection-heading">
+            Billable Elements <span class="count-badge" id="billable-elements-count">0</span>
+          </h4>
+          <div class="table-wrap">
+            <table>
+              <thead id="billable-elements-head"></thead>
+              <tbody id="billable-elements-body"></tbody>
+            </table>
+          </div>
+        </details>
+
+        <details class="results-block collapsible" id="app-groups-ds-block">
+          <summary>Workspace MAU <span class="count-badge" id="app-groups-ds-count">0</span></summary>
+          <div class="table-wrap">
+            <table>
+              <thead id="app-groups-ds-head"></thead>
+              <tbody id="app-groups-ds-body"></tbody>
+            </table>
+          </div>
+        </details>
+
+        <details class="results-block collapsible" id="feature-flipper-block">
+          <summary>Feature Flips <span class="count-badge" id="feature-flipper-count">0</span></summary>
+          <input
+            type="search"
+            id="feature-flipper-search"
+            class="section-search"
+            placeholder="Filter by flag name..."
+          />
+          <div class="table-wrap">
+            <table>
+              <thead id="feature-flipper-head"></thead>
+              <tbody id="feature-flipper-body"></tbody>
+            </table>
+          </div>
+        </details>
       </section>
     </main>
     <script src="app.js"></script>
