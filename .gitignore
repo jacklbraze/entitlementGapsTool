@@ -2,3 +2,4 @@ node_modules/
 *.csv
 .DS_Store
 snowflake-auth-keys.json
+snowflake.log
