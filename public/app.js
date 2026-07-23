@@ -7,6 +7,11 @@ const resultsHead = document.getElementById("results-head");
 const resultsBody = document.getElementById("results-body");
 const submitBtn = document.getElementById("submit-btn");
 
+const agentConsoleUsageHead = document.getElementById("agent-console-usage-head");
+const agentConsoleUsageBody = document.getElementById("agent-console-usage-body");
+const agentConsoleUsageCount = document.getElementById("agent-console-usage-count");
+const agentConsoleUsageNote = document.getElementById("agent-console-usage-note");
+
 const appGroupsHead = document.getElementById("app-groups-head");
 const appGroupsBody = document.getElementById("app-groups-body");
 const appGroupsCount = document.getElementById("app-groups-count");
@@ -27,6 +32,7 @@ const featureFlipperHead = document.getElementById("feature-flipper-head");
 const featureFlipperBody = document.getElementById("feature-flipper-body");
 const featureFlipperCount = document.getElementById("feature-flipper-count");
 const featureFlipperSearchEl = document.getElementById("feature-flipper-search");
+const featureFlipperBlock = document.getElementById("feature-flipper-block");
 
 /** Preferred left-to-right column order for the primary product_detail table; anything else found in the data is appended after. */
 const PRODUCT_DETAIL_PREFERRED_COLUMNS = [
@@ -322,12 +328,27 @@ resultsFiltersEl.addEventListener("change", (e) => {
   }
 });
 
-/** Generic, read-only table renderer used for every non-primary section (app groups, feature flags, etc). */
-function renderGenericTable(headEl, bodyEl, countEl, rows, preferredColumns = []) {
+/**
+ * Generic, read-only table renderer used for every non-primary section (app groups, feature flags, etc).
+ * `totalCount`, when provided, is used for the badge instead of rows.length - some sections (e.g. Agent
+ * Console Usage) cap the detail rows for size reasons but still know the true total via a separate COUNT(*).
+ * `noteEl`, when provided, gets a "showing most recent N of TOTAL" caption whenever rows are capped.
+ */
+function renderGenericTable(headEl, bodyEl, countEl, rows, preferredColumns = [], totalCount = null, noteEl = null) {
   const columns = orderedColumns(rows, preferredColumns);
+  const effectiveTotal = typeof totalCount === "number" ? totalCount : rows.length;
   headEl.innerHTML = "";
   bodyEl.innerHTML = "";
-  if (countEl) countEl.textContent = String(rows.length);
+  if (countEl) countEl.textContent = String(effectiveTotal);
+  if (noteEl) {
+    if (effectiveTotal > rows.length) {
+      noteEl.textContent = `Showing ${rows.length} unique agents, with a total of ${effectiveTotal} executions across all agents`;
+      noteEl.hidden = false;
+    } else {
+      noteEl.textContent = "";
+      noteEl.hidden = true;
+    }
+  }
 
   if (!columns.length) {
     bodyEl.innerHTML = '<tr><td><p class="empty-hint">No data returned for this section.</p></td></tr>';
@@ -413,6 +434,16 @@ function renderUsage(usage) {
   renderCompanySummary(usage.company_info ?? []);
   renderProductDetailTable(usage.product_detail ?? []);
 
+  renderGenericTable(
+    agentConsoleUsageHead,
+    agentConsoleUsageBody,
+    agentConsoleUsageCount,
+    usage.agent_console_usage ?? [],
+    ["AGENT_NAME", "LLM_OWNED_BY_CUSTOMER", "MODEL_PROVIDER", "MODEL_NAME", "INVOCATION_SOURCE"],
+    usage.agent_console_usage_total_count,
+    agentConsoleUsageNote
+  );
+
   renderGenericTable(appGroupsHead, appGroupsBody, appGroupsCount, usage.app_groups ?? [], [
     "APP_GROUP_NAME",
     "AG_ID",
@@ -474,6 +505,9 @@ function renderUsage(usage) {
     "D_ID",
     "REFRESHED_AT",
   ]);
+  // Always collapse Feature Flips on a fresh result set, even if the user
+  // had it expanded from a previous query in this session.
+  featureFlipperBlock.open = false;
 
   resultsSection.hidden = false;
 }
