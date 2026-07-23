@@ -283,6 +283,56 @@ BILLABLE_ELEMENTS AS (
     WHERE be.C_ID = (SELECT CFID FROM COMPANY_LOOKUP)
       AND be.MONTH = DATE_TRUNC('month', CURRENT_DATE())::DATE
       AND (be.ACTIVE_CURRENTS_INTEGRATIONS IS NOT NULL OR be.PARTNER_INTEGRATION_LIST IS NOT NULL)
+),
+
+-- AGENTCONSOLE_AGENTEXECUTED is a raw per-invocation event log with no
+-- natural cap, so a busy account can exceed Snowflake's ARRAY_AGG size
+-- limit ("Result array of ARRAY_AGG is too large"). The true execution
+-- count comes from a plain COUNT(*) over every invocation (a scalar has no
+-- size limit), while the detail table is deduped to one row per AGENT_ID
+-- (its most recent invocation) and capped to the 500 most recent agents.
+AGENT_CONSOLE_USAGE_RAW AS (
+    SELECT
+        AGENT_ID,
+        AGENT_NAME,
+        LLM_OWNED_BY_CUSTOMER,
+        MODEL_PROVIDER,
+        MODEL_NAME,
+        INVOCATION_SOURCE,
+        SF_CREATED_AT
+    FROM DI_PRODUCTION.DATALAKE.AGENTCONSOLE_AGENTEXECUTED
+    WHERE COMPANY_ID = (SELECT CFID FROM COMPANY_LOOKUP)
+),
+
+AGENT_CONSOLE_USAGE_TOTAL AS (
+    SELECT COUNT(*) AS TOTAL_EXECUTIONS FROM AGENT_CONSOLE_USAGE_RAW
+),
+
+AGENT_CONSOLE_USAGE_DEDUPED AS (
+    SELECT
+        AGENT_NAME,
+        LLM_OWNED_BY_CUSTOMER,
+        MODEL_PROVIDER,
+        MODEL_NAME,
+        INVOCATION_SOURCE,
+        SF_CREATED_AT
+    FROM AGENT_CONSOLE_USAGE_RAW
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY AGENT_ID
+        ORDER BY SF_CREATED_AT DESC
+    ) = 1
+),
+
+AGENT_CONSOLE_USAGE AS (
+    SELECT
+        AGENT_NAME,
+        LLM_OWNED_BY_CUSTOMER,
+        MODEL_PROVIDER,
+        MODEL_NAME,
+        INVOCATION_SOURCE
+    FROM AGENT_CONSOLE_USAGE_DEDUPED
+    ORDER BY SF_CREATED_AT DESC
+    LIMIT 500
 )
 
 SELECT OBJECT_CONSTRUCT(
@@ -292,7 +342,9 @@ SELECT OBJECT_CONSTRUCT(
     'product_detail',      (SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*)) FROM PRODUCT_DETAIL),
     'feature_flipper',     (SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*)) FROM FEATURE_FLIPPER),
     'partner_integrations',(SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*)) FROM PARTNER_INTEGRATIONS),
-    'billable_elements',   (SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*)) FROM BILLABLE_ELEMENTS)
+    'billable_elements',   (SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*)) FROM BILLABLE_ELEMENTS),
+    'agent_console_usage', (SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*)) FROM AGENT_CONSOLE_USAGE),
+    'agent_console_usage_total_count', (SELECT TOTAL_EXECUTIONS FROM AGENT_CONSOLE_USAGE_TOTAL)
 ) AS ACCOUNT_USAGE_JSON;`;
 }
 
@@ -304,15 +356,20 @@ const USAGE_SECTION_KEYS = [
   "feature_flipper",
   "partner_integrations",
   "billable_elements",
+  "agent_console_usage",
 ];
 
-/** Fills in any missing top-level section with an empty array so the front end never has to guard for undefined. */
+/** Fills in any missing top-level section with an empty array (or 0 for count fields) so the front end never has to guard for undefined. */
 function normalizeUsagePayload(raw) {
   const usage = raw && typeof raw === "object" ? raw : {};
   const normalized = {};
   for (const key of USAGE_SECTION_KEYS) {
     normalized[key] = Array.isArray(usage[key]) ? usage[key] : [];
   }
+  normalized.agent_console_usage_total_count =
+    typeof usage.agent_console_usage_total_count === "number"
+      ? usage.agent_console_usage_total_count
+      : normalized.agent_console_usage.length;
   return normalized;
 }
 

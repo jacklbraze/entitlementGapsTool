@@ -534,3 +534,10 @@ tbody tr:hover td {
 .section-search::placeholder {
   color: color-mix(in srgb, var(--light-purple) 45%, transparent);
 }
+
+.section-note {
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-style: italic;
+}
