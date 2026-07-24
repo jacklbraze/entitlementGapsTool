@@ -11,14 +11,17 @@ const agentConsoleUsageHead = document.getElementById("agent-console-usage-head"
 const agentConsoleUsageBody = document.getElementById("agent-console-usage-body");
 const agentConsoleUsageCount = document.getElementById("agent-console-usage-count");
 const agentConsoleUsageNote = document.getElementById("agent-console-usage-note");
+const agentConsoleUsageBlock = document.getElementById("agent-console-usage-block");
 
 const appGroupsHead = document.getElementById("app-groups-head");
 const appGroupsBody = document.getElementById("app-groups-body");
 const appGroupsCount = document.getElementById("app-groups-count");
+const appGroupsBlock = document.getElementById("app-groups-block");
 
 const appGroupsDsHead = document.getElementById("app-groups-ds-head");
 const appGroupsDsBody = document.getElementById("app-groups-ds-body");
 const appGroupsDsCount = document.getElementById("app-groups-ds-count");
+const appGroupsDsBlock = document.getElementById("app-groups-ds-block");
 
 const partnerIntegrationsHead = document.getElementById("partner-integrations-head");
 const partnerIntegrationsBody = document.getElementById("partner-integrations-body");
@@ -53,6 +56,7 @@ const resultsState = {
   rows: [],
   sortColumn: null,
   sortDir: "asc",
+  accountNotFound: false,
 };
 
 function showStatus(message, kind) {
@@ -76,7 +80,12 @@ function escapeHtml(value) {
 
 /** Renders any JS value (boolean/number/string/null/object) as display text, consistently across every table in the app. */
 function formatCellValue(v) {
-  if (v === null || v === undefined) return "";
+  // A real SQL NULL (present in the row, value null) is shown as the literal
+  // text "NULL" so it reads distinctly from FALSE/0. A key that's simply
+  // absent from this particular row (undefined - e.g. a column that only
+  // some rows in this section have) still renders as a blank cell.
+  if (v === null) return "NULL";
+  if (v === undefined) return "";
   if (typeof v === "boolean") return v ? "TRUE" : "FALSE";
   if (typeof v === "object") return JSON.stringify(v);
   return String(v);
@@ -195,6 +204,17 @@ function applySort(rows) {
 function renderTableBody(columns, rows) {
   resultsBody.innerHTML = "";
 
+  if (resultsState.accountNotFound) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = Math.max(columns.length, 1);
+    td.innerHTML =
+      '<p class="empty-hint">No account was found, please check that the account name you entered matches the account name in Salesforce</p>';
+    tr.appendChild(td);
+    resultsBody.appendChild(tr);
+    return;
+  }
+
   if (!columns.length) {
     resultsBody.innerHTML =
       '<tr><td colspan="1"><p class="empty-hint">No columns returned.</p></td></tr>';
@@ -207,7 +227,7 @@ function renderTableBody(columns, rows) {
     td.colSpan = columns.length;
     if (resultsState.rows.length === 0) {
       td.innerHTML =
-        '<p class="empty-hint">No customer matched your search. Please use the EXACT account name as it appears in Salesforce.</p>';
+        '<p class="empty-hint">No products returned for this account.</p>';
     } else {
       td.innerHTML =
         '<p class="empty-hint">No rows match the current filters. Try changing the checkboxes above.</p>';
@@ -298,11 +318,12 @@ function refreshResultsView() {
   renderTableBody(resultsState.columns, sorted);
 }
 
-function renderProductDetailTable(rows) {
+function renderProductDetailTable(rows, accountNotFound = false) {
   resultsState.columns = orderedColumns(rows, PRODUCT_DETAIL_PREFERRED_COLUMNS);
   resultsState.rows = rows;
   resultsState.sortColumn = null;
   resultsState.sortDir = "asc";
+  resultsState.accountNotFound = accountNotFound;
   clearFilterCheckboxes();
   refreshResultsView();
 }
@@ -430,9 +451,28 @@ featureFlipperSearchEl.addEventListener("input", () => {
   ]);
 });
 
+const SECONDARY_RESULT_BLOCKS = [agentConsoleUsageBlock, appGroupsBlock, appGroupsDsBlock, featureFlipperBlock];
+
 function renderUsage(usage) {
+  const accountFound = (usage.company_info ?? []).length > 0;
+
   renderCompanySummary(usage.company_info ?? []);
-  renderProductDetailTable(usage.product_detail ?? []);
+  renderProductDetailTable(usage.product_detail ?? [], !accountFound);
+
+  if (!accountFound) {
+    // Nothing else is meaningful to show when the account itself couldn't
+    // be resolved - hide every secondary section and leave just the
+    // "No account was found" row in the Product Entitlements table.
+    for (const block of SECONDARY_RESULT_BLOCKS) {
+      if (block) block.hidden = true;
+    }
+    resultsSection.hidden = false;
+    return;
+  }
+
+  for (const block of SECONDARY_RESULT_BLOCKS) {
+    if (block) block.hidden = false;
+  }
 
   renderGenericTable(
     agentConsoleUsageHead,
