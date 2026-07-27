@@ -112,8 +112,8 @@
           </div>
         </div>
 
-        <div class="results-block">
-          <h3>Agent Console Usage <span class="count-badge" id="agent-console-usage-count">0</span></h3>
+        <details class="results-block collapsible" id="agent-console-usage-block">
+          <summary>Agent Console Usage <span class="count-badge" id="agent-console-usage-count">0</span></summary>
           <p id="agent-console-usage-note" class="section-note" hidden></p>
           <div class="table-wrap">
             <table>
@@ -121,7 +121,18 @@
               <tbody id="agent-console-usage-body"></tbody>
             </table>
           </div>
-        </div>
+        </details>
+
+        <details class="results-block collapsible" id="operator-usage-block">
+          <summary>Operator Usage <span class="count-badge" id="operator-usage-count">0</span></summary>
+          <p id="operator-usage-note" class="section-note" hidden></p>
+          <div class="table-wrap">
+            <table>
+              <thead id="operator-usage-head"></thead>
+              <tbody id="operator-usage-body"></tbody>
+            </table>
+          </div>
+        </details>
 
         <details class="results-block collapsible" id="app-groups-block">
           <summary>Currents/Data Sharing <span class="count-badge" id="app-groups-count">0</span></summary>

@@ -349,6 +349,50 @@ AGENT_CONSOLE_USAGE AS (
     FROM AGENT_CONSOLE_USAGE_DEDUPED
     ORDER BY SF_CREATED_AT DESC
     LIMIT 500
+),
+
+-- DIAGNOSTICS_OPERATOR_CHATHISTORY is a raw per-segment event log for the
+-- dashboard operator. CHAT_SEGMENT_AS_MARKDOWN holds a large JSON blob; we
+-- only care about the end-user's typed question, which lives at
+-- input[0].content of the request segments where input[0].role = 'user'
+-- (assistant replies, reasoning, and tool-call follow-ups are skipped).
+-- Non-impersonation rows only, scoped to the resolved company (CFID).
+OPERATOR_USAGE_RAW AS (
+    SELECT
+        SF_CREATED_AT,
+        SEGMENT_GROUP_ID,
+        TRY_PARSE_JSON(CHAT_SEGMENT_AS_MARKDOWN) AS PARSED
+    FROM DI_PRODUCTION.DATALAKE.DIAGNOSTICS_OPERATOR_CHATHISTORY
+    WHERE COMPANY_ID = (SELECT CFID FROM COMPANY_LOOKUP)
+      AND IS_IMPERSONATION = FALSE
+),
+
+-- Keep only segments carrying a user message, surfacing just that text as
+-- CHAT_SEGMENT_AS_MARKDOWN. Deduped to one row per request (SEGMENT_GROUP_ID)
+-- so a message split across multiple segments doesn't appear more than once.
+OPERATOR_USAGE_MESSAGES AS (
+    SELECT
+        SF_CREATED_AT,
+        PARSED:input[0]:content::string AS CHAT_SEGMENT_AS_MARKDOWN
+    FROM OPERATOR_USAGE_RAW
+    WHERE PARSED:input[0]:role::string = 'user'
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY SEGMENT_GROUP_ID
+        ORDER BY SF_CREATED_AT ASC
+    ) = 1
+),
+
+OPERATOR_USAGE_TOTAL AS (
+    SELECT COUNT(*) AS TOTAL_MESSAGES FROM OPERATOR_USAGE_MESSAGES
+),
+
+OPERATOR_USAGE AS (
+    SELECT
+        SF_CREATED_AT,
+        CHAT_SEGMENT_AS_MARKDOWN
+    FROM OPERATOR_USAGE_MESSAGES
+    ORDER BY SF_CREATED_AT DESC
+    LIMIT 500
 )
 
 -- Note: OBJECT_CONSTRUCT_KEEP_NULL (not plain OBJECT_CONSTRUCT) is used here
@@ -364,7 +408,9 @@ SELECT OBJECT_CONSTRUCT(
     'partner_integrations',(SELECT ARRAY_AGG(OBJECT_CONSTRUCT_KEEP_NULL(*)) FROM PARTNER_INTEGRATIONS),
     'billable_elements',   (SELECT ARRAY_AGG(OBJECT_CONSTRUCT_KEEP_NULL(*)) FROM BILLABLE_ELEMENTS),
     'agent_console_usage', (SELECT ARRAY_AGG(OBJECT_CONSTRUCT_KEEP_NULL(*)) FROM AGENT_CONSOLE_USAGE),
-    'agent_console_usage_total_count', (SELECT TOTAL_EXECUTIONS FROM AGENT_CONSOLE_USAGE_TOTAL)
+    'agent_console_usage_total_count', (SELECT TOTAL_EXECUTIONS FROM AGENT_CONSOLE_USAGE_TOTAL),
+    'operator_usage', (SELECT ARRAY_AGG(OBJECT_CONSTRUCT_KEEP_NULL(*)) FROM OPERATOR_USAGE),
+    'operator_usage_total_count', (SELECT TOTAL_MESSAGES FROM OPERATOR_USAGE_TOTAL)
 ) AS ACCOUNT_USAGE_JSON;`;
 }
 
@@ -377,6 +423,7 @@ const USAGE_SECTION_KEYS = [
   "partner_integrations",
   "billable_elements",
   "agent_console_usage",
+  "operator_usage",
 ];
 
 /** Fills in any missing top-level section with an empty array (or 0 for count fields) so the front end never has to guard for undefined. */
@@ -390,6 +437,10 @@ function normalizeUsagePayload(raw) {
     typeof usage.agent_console_usage_total_count === "number"
       ? usage.agent_console_usage_total_count
       : normalized.agent_console_usage.length;
+  normalized.operator_usage_total_count =
+    typeof usage.operator_usage_total_count === "number"
+      ? usage.operator_usage_total_count
+      : normalized.operator_usage.length;
   return normalized;
 }
 
