@@ -205,6 +205,17 @@ LANDING_PAGE_USAGE AS (
     ), 0) > 0 AS HAS_USAGE
 ),
 
+-- Snowflake Credits usage isn't tracked in the product_detail table, so the
+-- IS_USING signal is sourced here from the query-builder usage billings,
+-- keyed on the company's app group ids (AG_ID).
+SNOWFLAKE_CREDITS_USAGE AS (
+    SELECT IFNULL((
+        SELECT COUNT(*)
+        FROM GROWTH_BRAZE_FOUNDATIONS.MONGO_PLATFORM.APPBOY_ANALYTICS_QUERY_BUILDER_USAGE_BILLINGS
+        WHERE AG_ID IN (SELECT AG_ID FROM APP_GROUPS)
+    ), 0) > 0 AS HAS_USAGE
+),
+
 BANNER_PURCHASED_FLAG AS (
     SELECT (
         SELECT STATUS
@@ -224,6 +235,7 @@ PRODUCT_DETAIL AS (
         IS_PURCHASED,
         CASE
             WHEN PRODUCT ILIKE '%Landing Page%' THEN (SELECT HAS_USAGE FROM LANDING_PAGE_USAGE)
+            WHEN PRODUCT ILIKE '%Snowflake Credit%' THEN (SELECT HAS_USAGE FROM SNOWFLAKE_CREDITS_USAGE)
             ELSE IS_USING
         END AS IS_USING,
         CHANNEL_USAGE
