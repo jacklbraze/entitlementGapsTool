@@ -13,6 +13,12 @@ const agentConsoleUsageCount = document.getElementById("agent-console-usage-coun
 const agentConsoleUsageNote = document.getElementById("agent-console-usage-note");
 const agentConsoleUsageBlock = document.getElementById("agent-console-usage-block");
 
+const operatorUsageHead = document.getElementById("operator-usage-head");
+const operatorUsageBody = document.getElementById("operator-usage-body");
+const operatorUsageCount = document.getElementById("operator-usage-count");
+const operatorUsageNote = document.getElementById("operator-usage-note");
+const operatorUsageBlock = document.getElementById("operator-usage-block");
+
 const appGroupsHead = document.getElementById("app-groups-head");
 const appGroupsBody = document.getElementById("app-groups-body");
 const appGroupsCount = document.getElementById("app-groups-count");
@@ -355,7 +361,16 @@ resultsFiltersEl.addEventListener("change", (e) => {
  * Console Usage) cap the detail rows for size reasons but still know the true total via a separate COUNT(*).
  * `noteEl`, when provided, gets a "showing most recent N of TOTAL" caption whenever rows are capped.
  */
-function renderGenericTable(headEl, bodyEl, countEl, rows, preferredColumns = [], totalCount = null, noteEl = null) {
+function renderGenericTable(
+  headEl,
+  bodyEl,
+  countEl,
+  rows,
+  preferredColumns = [],
+  totalCount = null,
+  noteEl = null,
+  noteFormatter = (shown, total) => `Showing ${shown} unique agents, with a total of ${total} executions across all agents`
+) {
   const columns = orderedColumns(rows, preferredColumns);
   const effectiveTotal = typeof totalCount === "number" ? totalCount : rows.length;
   headEl.innerHTML = "";
@@ -363,7 +378,7 @@ function renderGenericTable(headEl, bodyEl, countEl, rows, preferredColumns = []
   if (countEl) countEl.textContent = String(effectiveTotal);
   if (noteEl) {
     if (effectiveTotal > rows.length) {
-      noteEl.textContent = `Showing ${rows.length} unique agents, with a total of ${effectiveTotal} executions across all agents`;
+      noteEl.textContent = noteFormatter(rows.length, effectiveTotal);
       noteEl.hidden = false;
     } else {
       noteEl.textContent = "";
@@ -451,7 +466,7 @@ featureFlipperSearchEl.addEventListener("input", () => {
   ]);
 });
 
-const SECONDARY_RESULT_BLOCKS = [agentConsoleUsageBlock, appGroupsBlock, appGroupsDsBlock, featureFlipperBlock];
+const SECONDARY_RESULT_BLOCKS = [agentConsoleUsageBlock, operatorUsageBlock, appGroupsBlock, appGroupsDsBlock, featureFlipperBlock];
 
 function renderUsage(usage) {
   const accountFound = (usage.company_info ?? []).length > 0;
@@ -482,6 +497,17 @@ function renderUsage(usage) {
     ["AGENT_NAME", "LLM_OWNED_BY_CUSTOMER", "MODEL_PROVIDER", "MODEL_NAME", "INVOCATION_SOURCE"],
     usage.agent_console_usage_total_count,
     agentConsoleUsageNote
+  );
+
+  renderGenericTable(
+    operatorUsageHead,
+    operatorUsageBody,
+    operatorUsageCount,
+    usage.operator_usage ?? [],
+    ["SF_CREATED_AT", "CHAT_SEGMENT_AS_MARKDOWN"],
+    usage.operator_usage_total_count,
+    operatorUsageNote,
+    (shown, total) => `Showing the ${shown} most recent of ${total} operator messages`
   );
 
   renderGenericTable(appGroupsHead, appGroupsBody, appGroupsCount, usage.app_groups ?? [], [
