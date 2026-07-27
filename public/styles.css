@@ -61,9 +61,10 @@ body {
 }
 
 .wrap {
-  max-width: 960px;
+  width: 100%;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 2rem 1.25rem 3rem;
+  padding: 2rem clamp(1.25rem, 4vw, 3.5rem) 3rem;
 }
 
 .site-header {
@@ -123,7 +124,6 @@ h2 {
 .lede {
   color: var(--muted);
   margin: 0 0 1.5rem;
-  max-width: 100%;
 }
 
 .card {
