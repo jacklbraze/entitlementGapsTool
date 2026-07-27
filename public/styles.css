@@ -218,6 +218,71 @@ button:disabled {
   filter: grayscale(0.2);
 }
 
+/* Stacks the customer-name field and its Run query button once revealed */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* display:flex above would otherwise override the `hidden` attribute's
+   default display:none, so keep the section hidden until auth completes. */
+.form-section[hidden] {
+  display: none;
+}
+
+/* Customer-name type-ahead */
+.typeahead {
+  position: relative;
+}
+
+.typeahead input {
+  width: 100%;
+}
+
+.suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  max-height: 16rem;
+  overflow-y: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--dark-purple) 92%, #0a0018);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--dark-purple) 70%, transparent);
+}
+
+.suggestions[hidden] {
+  display: none;
+}
+
+.suggestion-item {
+  padding: 0.5rem 0.65rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggestion-item:hover,
+.suggestion-item.active {
+  background: color-mix(in srgb, var(--orange) 16%, transparent);
+}
+
+.suggestion-item mark {
+  background: transparent;
+  color: var(--orange);
+  font-weight: 600;
+}
+
 .status {
   margin-top: 1rem;
   padding: 0.85rem 1.1rem;

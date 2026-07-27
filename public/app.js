@@ -215,7 +215,7 @@ function renderTableBody(columns, rows) {
     const td = document.createElement("td");
     td.colSpan = Math.max(columns.length, 1);
     td.innerHTML =
-      '<p class="empty-hint">No account was found, please check that the account name you entered matches the account name in Salesforce</p>';
+      '<p class="empty-hint">No account was found, please check that the account name or Salesforce account ID you entered matches the value in Salesforce</p>';
     tr.appendChild(td);
     resultsBody.appendChild(tr);
     return;
@@ -580,6 +580,7 @@ function renderUsage(usage) {
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
+  closeSuggestions();
   clearStatus();
   resultsSection.hidden = true;
 
@@ -628,5 +629,218 @@ form.addEventListener("submit", async (e) => {
     );
   } finally {
     submitBtn.disabled = false;
+  }
+});
+
+/* ---------- Customer-name type-ahead ---------- */
+const customerInput = document.getElementById("customer-name-input");
+const emailInput = form.querySelector('input[name="email"]');
+const suggestionsEl = document.getElementById("customer-suggestions");
+
+const suggestState = { items: [], activeIndex: -1, seq: 0, open: false };
+let suggestDebounce = null;
+
+function closeSuggestions() {
+  suggestState.open = false;
+  suggestState.items = [];
+  suggestState.activeIndex = -1;
+  suggestionsEl.hidden = true;
+  suggestionsEl.innerHTML = "";
+  customerInput.setAttribute("aria-expanded", "false");
+  customerInput.removeAttribute("aria-activedescendant");
+}
+
+/** Wraps the matched portion of a name in <mark> for display (input is HTML-escaped first). */
+function highlightMatch(name, query) {
+  const idx = name.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return escapeHtml(name);
+  return (
+    escapeHtml(name.slice(0, idx)) +
+    `<mark>${escapeHtml(name.slice(idx, idx + query.length))}</mark>` +
+    escapeHtml(name.slice(idx + query.length))
+  );
+}
+
+function renderSuggestions(items, query) {
+  suggestState.items = items;
+  suggestState.activeIndex = -1;
+  if (!items.length) {
+    closeSuggestions();
+    return;
+  }
+  suggestionsEl.innerHTML = items
+    .map(
+      (name, i) =>
+        `<li class="suggestion-item" role="option" id="suggestion-${i}" data-index="${i}">${highlightMatch(
+          name,
+          query
+        )}</li>`
+    )
+    .join("");
+  suggestionsEl.hidden = false;
+  suggestState.open = true;
+  customerInput.setAttribute("aria-expanded", "true");
+}
+
+function setActiveSuggestion(index) {
+  const options = suggestionsEl.querySelectorAll(".suggestion-item");
+  if (!options.length) return;
+  const clamped = (index + options.length) % options.length;
+  suggestState.activeIndex = clamped;
+  options.forEach((el, i) => {
+    el.classList.toggle("active", i === clamped);
+    if (i === clamped) {
+      el.scrollIntoView({ block: "nearest" });
+      customerInput.setAttribute("aria-activedescendant", el.id);
+    }
+  });
+}
+
+function chooseSuggestion(index) {
+  const name = suggestState.items[index];
+  if (typeof name !== "string") return;
+  customerInput.value = name;
+  closeSuggestions();
+}
+
+async function fetchSuggestions(query) {
+  const email = String(emailInput?.value || "").trim();
+  if (!email || query.length < 2) {
+    closeSuggestions();
+    return;
+  }
+  const seq = ++suggestState.seq;
+  try {
+    const res = await fetch(
+      `/api/suggest?email=${encodeURIComponent(email)}&q=${encodeURIComponent(query)}`
+    );
+    if (!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    // Drop stale responses (a newer keystroke has since fired) or ones whose
+    // query no longer matches what's in the box.
+    if (seq !== suggestState.seq || customerInput.value.trim() !== query) return;
+    renderSuggestions(Array.isArray(data.suggestions) ? data.suggestions : [], query);
+  } catch {
+    /* suggestions are best-effort; ignore errors */
+  }
+}
+
+customerInput.addEventListener("input", () => {
+  const query = customerInput.value.trim();
+  if (suggestDebounce) clearTimeout(suggestDebounce);
+  if (query.length < 2) {
+    closeSuggestions();
+    return;
+  }
+  suggestDebounce = setTimeout(() => fetchSuggestions(query), 180);
+});
+
+customerInput.addEventListener("keydown", (e) => {
+  if (!suggestState.open) return;
+  switch (e.key) {
+    case "ArrowDown":
+      e.preventDefault();
+      setActiveSuggestion(suggestState.activeIndex + 1);
+      break;
+    case "ArrowUp":
+      e.preventDefault();
+      setActiveSuggestion(suggestState.activeIndex - 1);
+      break;
+    case "Enter":
+      // Only intercept Enter when a suggestion is highlighted; otherwise let
+      // the form submit as normal.
+      if (suggestState.activeIndex >= 0) {
+        e.preventDefault();
+        chooseSuggestion(suggestState.activeIndex);
+      }
+      break;
+    case "Escape":
+      closeSuggestions();
+      break;
+    default:
+      break;
+  }
+});
+
+// mousedown (not click) so selection runs before the input's blur handler fires.
+suggestionsEl.addEventListener("mousedown", (e) => {
+  const item = e.target.closest(".suggestion-item");
+  if (!item) return;
+  e.preventDefault();
+  chooseSuggestion(Number(item.dataset.index));
+});
+
+customerInput.addEventListener("blur", () => {
+  // Small delay lets a suggestion mousedown complete before we close.
+  setTimeout(closeSuggestions, 120);
+});
+
+/* ---------- Two-step flow: authenticate, then reveal the search field ---------- */
+const authBtn = document.getElementById("auth-btn");
+const authRow = document.getElementById("auth-row");
+const searchSection = document.getElementById("search-section");
+
+let authenticatedEmail = null;
+
+function setSearchVisible(visible) {
+  searchSection.hidden = !visible;
+  authRow.hidden = visible;
+}
+
+authBtn.addEventListener("click", async () => {
+  const email = String(emailInput.value || "").trim();
+  if (!email) {
+    showStatus("Email Address is required.", "error");
+    emailInput.focus();
+    return;
+  }
+  authBtn.disabled = true;
+  showStatus(
+    "Authenticating with Snowflake... If a new tab opens, complete Okta sign-in",
+    "info"
+  );
+  try {
+    const res = await fetch("/api/authenticate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showStatus(data.error || `Authentication failed (${res.status}).`, "error");
+      return;
+    }
+    authenticatedEmail = email;
+    setSearchVisible(true);
+    clearStatus();
+    customerInput.focus();
+  } catch (err) {
+    showStatus(err instanceof Error ? err.message : "Network error.", "error");
+  } finally {
+    authBtn.disabled = false;
+  }
+});
+
+// Changing the email after connecting invalidates the session, so drop back to
+// the authenticate step (the server would need a fresh connection anyway).
+emailInput.addEventListener("input", () => {
+  if (authenticatedEmail !== null && String(emailInput.value || "").trim() !== authenticatedEmail) {
+    authenticatedEmail = null;
+    setSearchVisible(false);
+    resultsSection.hidden = true;
+    customerInput.value = "";
+    closeSuggestions();
+  }
+});
+
+// Pre-auth the email field is the only visible control, so make Enter trigger
+// Authenticate rather than submitting the (still-hidden, incomplete) form.
+emailInput.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  if (authenticatedEmail && String(emailInput.value || "").trim() === authenticatedEmail) {
+    customerInput.focus();
+  } else {
+    authBtn.click();
   }
 });
