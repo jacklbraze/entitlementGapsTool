@@ -74,11 +74,14 @@ COMPANY_LOOKUP AS (
     LIMIT 1
 ),
 
--- Renewal date comes from the Salesforce account's current contract end date,
--- matched on the resolved company name (works whether the user searched by
--- name or by Salesforce account ID).
-RENEWAL_DATE AS (
-    SELECT CURRENT_CONTRACT_END_DATE AS RENEWAL_DATE
+-- Renewal date (current contract end date) and platform edition
+-- (success support level) both come from the Salesforce account, matched on
+-- the resolved company name (works whether the user searched by name or by
+-- Salesforce account ID).
+SALESFORCE_ACCOUNT_INFO AS (
+    SELECT
+        CURRENT_CONTRACT_END_DATE AS RENEWAL_DATE,
+        SUCCESS_SUPPORT_LEVEL AS PLATFORM_EDITION
     FROM GROWTH_BRAZE_FOUNDATIONS.SALESFORCE.ACCOUNT
     WHERE NAME = (SELECT COMPANY_NAME FROM COMPANY_LOOKUP)
     LIMIT 1
@@ -95,7 +98,8 @@ COMPANY_INFO AS (
         TERRITORY_V3,
         BILLINGCOUNTRY,
         SALESFORCE_ACCOUNT,
-        (SELECT RENEWAL_DATE FROM RENEWAL_DATE) AS RENEWAL_DATE
+        (SELECT RENEWAL_DATE FROM SALESFORCE_ACCOUNT_INFO) AS RENEWAL_DATE,
+        (SELECT PLATFORM_EDITION FROM SALESFORCE_ACCOUNT_INFO) AS PLATFORM_EDITION
     FROM COMPANY_LOOKUP
 ),
 
