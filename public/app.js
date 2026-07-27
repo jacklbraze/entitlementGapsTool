@@ -431,6 +431,7 @@ function renderCompanySummary(companyInfoRows) {
   const fields = [
     ["Company", info.COMPANY_NAME],
     ["Salesforce Account", info.SALESFORCE_ACCOUNT],
+    ["Renewal Date", info.RENEWAL_DATE],
     ["CFID", info.CFID],
     ["SFID", info.SFID],
     ["Cluster", info.CLUSTER],
