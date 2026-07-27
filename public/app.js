@@ -45,14 +45,143 @@ const featureFlipperBlock = document.getElementById("feature-flipper-block");
 
 /** Preferred left-to-right column order for the primary product_detail table; anything else found in the data is appended after. */
 const PRODUCT_DETAIL_PREFERRED_COLUMNS = [
-  "ACCOUNT_ID",
-  "ACCOUNT_NAME",
   "PRODUCT",
   "ALLOTMENT",
+  "INCLUDED",
   "IS_PURCHASED",
   "IS_USING",
   "CHANNEL_USAGE",
 ];
+
+/** Columns present in the product_detail rows but intentionally not shown in the table. */
+const PRODUCT_DETAIL_HIDDEN_COLUMNS = ["ACCOUNT_ID", "ACCOUNT_NAME"];
+
+/**
+ * Static entitlement reference, transcribed from the "Braze Platform
+ * Entitlements FY27" CSV. Each entry maps a feature to its availability in the
+ * four platform editions, in this order: [Braze Go, Braze Select, Braze Pro,
+ * Braze Enterprise]. A cell of Included / Limited / Pro Only means the feature
+ * comes with that edition (Included = TRUE); Add-on / Not Included means it is
+ * not part of the edition and must be purchased separately (Included = FALSE).
+ */
+const EDITION_ORDER = ["go", "select", "pro", "enterprise"];
+const INCLUDED_CELL_VALUES = new Set(["included", "limited", "pro only"]);
+const ENTITLEMENT_REFERENCE = [
+  ["Cloud Data Ingestion", ["Included", "Included", "Included", "Included"]],
+  ["Data Transformation", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Automated ID Resolution", ["Included", "Included", "Included", "Included"]],
+  ["Segment Extensions", ["Limited", "Limited", "Limited", "Limited"]],
+  ["SQL Segment Extensions", ["Limited", "Limited", "Limited", "Limited"]],
+  ["CDI Segments (Zero-Copy)", ["Included", "Included", "Included", "Included"]],
+  ["Catalogs", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Data Management", ["Included", "Included", "Included", "Included"]],
+  ["Reporting and Analytics", ["Included", "Included", "Included", "Included"]],
+  ["Query Builder", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Data Distribution", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["Technology Alloys Partner Network (180+)", ["Included", "Included", "Included", "Included"]],
+  ["Automated User Provisioning (SCIM)", ["Not Included", "Included", "Included", "Included"]],
+  ["Automated Security Events", ["Not Included", "Included", "Included", "Included"]],
+  ["Identifier Field-Level Encryption", ["Not Included", "Included", "Included", "Included"]],
+  ["Teams", ["Not Included", "Not Included", "Included", "Included"]],
+  ["HIPAA", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Local Data Centers", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Two-Factor Authorization / SSO", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Active Campaigns (up to 100/250/1000/10000)", ["Included", "Included", "Included", "Included"]],
+  ["Active Canvases (up to 50/125/500/5000)", ["Included", "Included", "Included", "Included"]],
+  ["Suppression Lists", ["Included", "Included", "Included", "Included"]],
+  ["Global Control Group", ["Included", "Included", "Included", "Included"]],
+  ["Frequency Capping", ["Included", "Included", "Included", "Included"]],
+  ["Copywriting (Tone Control & Brand Guidelines)", ["Included", "Included", "Included", "Included"]],
+  ["Image Generator", ["Included", "Included", "Included", "Included"]],
+  ["AI Content QA", ["Included", "Included", "Included", "Included"]],
+  ["AI SQL Segment Extensions", ["Included", "Included", "Included", "Included"]],
+  ["AI Query Builder", ["Included", "Included", "Included", "Included"]],
+  ["Winning Variant", ["Included", "Included", "Included", "Included"]],
+  ["Winning Path", ["Included", "Included", "Included", "Included"]],
+  ["Intelligence Suite", ["Included", "Included", "Included", "Included"]],
+  ["Liquid Assistant", ["Included", "Included", "Included", "Included"]],
+  ["Personalized Path", ["Included", "Included", "Included", "Included"]],
+  ["Personalized Variant", ["Included", "Included", "Included", "Included"]],
+  ["Predictive Suite", ["Not Included", "Not Included", "Pro Only", "Pro Only"]],
+  ["AI Item Recommendations", ["Not Included", "Not Included", "Pro Only", "Pro Only"]],
+  ["BrazeAI Agent Console", ["Included", "Included", "Included", "Included"]],
+  ["BrazeAI Operator", ["Included", "Included", "Included", "Included"]],
+  ["Push (Mobile & Web)", ["Included", "Included", "Included", "Included"]],
+  ["In-App Messaging (Mobile & Web)", ["Included", "Included", "Included", "Included"]],
+  ["Email", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["SMS / MMS / RCS", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["WhatsApp", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["LINE", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["Content Cards", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["Banners", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["Audience Sync", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["Webhooks", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["Message Archiving", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["AI Agent Console", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["Landing Pages", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Feature Flags", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Braze SDKs", ["Included", "Included", "Included", "Included"]],
+  ["REST API", ["Included", "Included", "Included", "Included"]],
+  ["Multivariate & A/B Testing", ["Included", "Included", "Included", "Included"]],
+  ["Campaign Analytics", ["Included", "Included", "Included", "Included"]],
+  ["Canvas Analytics", ["Included", "Included", "Included", "Included"]],
+  ["Funnel Reports", ["Included", "Included", "Included", "Included"]],
+  ["Retention Reports", ["Included", "Included", "Included", "Included"]],
+  ["Report Builder", ["Included", "Included", "Included", "Included"]],
+  ["Location Tracking", ["Included", "Included", "Included", "Included"]],
+  ["Geofences", ["Included", "Included", "Included", "Included"]],
+  ["Location Targeting", ["Included", "Included", "Included", "Included"]],
+];
+
+/** Normalizes a feature/product name for matching: drops parenthetical
+ * qualifiers, lowercases, and collapses any non-alphanumeric runs to a single
+ * space (so "SMS / MMS / RCS" and "Push (Mobile & Web)" match sensibly). */
+function normalizeFeatureName(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+const ENTITLEMENT_BY_FEATURE = new Map(
+  ENTITLEMENT_REFERENCE.map(([feature, editions]) => [normalizeFeatureName(feature), editions])
+);
+
+/** Maps a Salesforce SUCCESS_SUPPORT_LEVEL string to a 0-3 edition index, or -1 if unrecognized. */
+function editionIndexFromLevel(level) {
+  const s = String(level ?? "").toLowerCase();
+  // Check enterprise before pro/go so multi-word levels resolve correctly.
+  if (s.includes("enterprise")) return EDITION_ORDER.indexOf("enterprise");
+  if (s.includes("pro")) return EDITION_ORDER.indexOf("pro");
+  if (s.includes("select")) return EDITION_ORDER.indexOf("select");
+  if (s.includes("go")) return EDITION_ORDER.indexOf("go");
+  return -1;
+}
+
+/**
+ * Whether a product is included in the given platform edition per the FY27
+ * entitlements reference. Returns true/false when the edition is known, or
+ * undefined when we can't determine the edition (so the cell renders blank).
+ * Products not present in the reference default to false (not part of the
+ * standard edition entitlements).
+ */
+function computeIncluded(productName, editionIndex) {
+  if (editionIndex < 0) return undefined;
+  const editions = ENTITLEMENT_BY_FEATURE.get(normalizeFeatureName(productName));
+  if (!editions) return false;
+  return INCLUDED_CELL_VALUES.has(String(editions[editionIndex] ?? "").toLowerCase());
+}
+
+/** Returns a copy of the product rows with an "Included" column derived from the platform edition. */
+function augmentProductRowsWithIncluded(rows, platformEdition) {
+  const editionIndex = editionIndexFromLevel(platformEdition);
+  const productKey = findColumnKey(collectColumns(rows), "PRODUCT");
+  return rows.map((row) => ({
+    ...row,
+    INCLUDED: computeIncluded(productKey ? row[productKey] : row.PRODUCT, editionIndex),
+  }));
+}
 
 let featureFlipperRows = [];
 
@@ -164,10 +293,17 @@ function getAllowedFilterValues(fieldLogicalName) {
 }
 
 function applyRowFilters(rows) {
+  const colIncluded = findColumnKey(resultsState.columns, "INCLUDED");
   const colPurchased = findColumnKey(resultsState.columns, "IS_PURCHASED");
   const colUsing = findColumnKey(resultsState.columns, "IS_USING");
 
   return rows.filter((row) => {
+    if (colIncluded) {
+      const allowed = getAllowedFilterValues("INCLUDED");
+      if (allowed && allowed.length > 0) {
+        if (!cellMatchesAllowedBools(row[colIncluded], allowed)) return false;
+      }
+    }
     if (colPurchased) {
       const allowed = getAllowedFilterValues("IS_PURCHASED");
       if (allowed && allowed.length > 0) {
@@ -200,9 +336,33 @@ function compareCells(a, b, col) {
   });
 }
 
+/**
+ * Default ordering (used until the user clicks a column to sort): rows that
+ * represent an entitlement gap - IS_PURCHASED = TRUE and IS_USING = FALSE/NULL
+ * - float to the top. Original row order is preserved within each group.
+ */
+function applyDefaultOrder(rows) {
+  const colPurchased = findColumnKey(resultsState.columns, "IS_PURCHASED");
+  const colUsing = findColumnKey(resultsState.columns, "IS_USING");
+  if (!colPurchased || !colUsing) return rows;
+
+  const isGap = (row) =>
+    parseBoolCell(row[colPurchased]) === "TRUE" &&
+    parseBoolCell(row[colUsing]) !== "TRUE";
+
+  return rows
+    .map((row, i) => ({ row, i }))
+    .sort((a, b) => {
+      const rankA = isGap(a.row) ? 0 : 1;
+      const rankB = isGap(b.row) ? 0 : 1;
+      return rankA - rankB || a.i - b.i;
+    })
+    .map((entry) => entry.row);
+}
+
 function applySort(rows) {
   const col = resultsState.sortColumn;
-  if (!col || !resultsState.columns.includes(col)) return rows;
+  if (!col || !resultsState.columns.includes(col)) return applyDefaultOrder(rows);
   const dir = resultsState.sortDir === "desc" ? -1 : 1;
   return [...rows].sort((a, b) => dir * compareCells(a, b, col));
 }
@@ -295,6 +455,7 @@ function renderSortableHeader() {
 
 function updateFilterBarVisibility() {
   const cols = resultsState.columns;
+  const hasIncluded = Boolean(findColumnKey(cols, "INCLUDED"));
   const hasPurchased = Boolean(findColumnKey(cols, "IS_PURCHASED"));
   const hasUsing = Boolean(findColumnKey(cols, "IS_USING"));
   const show = cols.length > 0 && hasPurchased && hasUsing;
@@ -303,6 +464,7 @@ function updateFilterBarVisibility() {
     for (const group of resultsFiltersEl.querySelectorAll(".results-filters-group")) {
       const forName = group.dataset.filterFor;
       const colExists =
+        (forName === "INCLUDED" && hasIncluded) ||
         (forName === "IS_PURCHASED" && hasPurchased) ||
         (forName === "IS_USING" && hasUsing);
       group.hidden = !colExists;
@@ -325,7 +487,10 @@ function refreshResultsView() {
 }
 
 function renderProductDetailTable(rows, accountNotFound = false) {
-  resultsState.columns = orderedColumns(rows, PRODUCT_DETAIL_PREFERRED_COLUMNS);
+  const hidden = new Set(PRODUCT_DETAIL_HIDDEN_COLUMNS);
+  resultsState.columns = orderedColumns(rows, PRODUCT_DETAIL_PREFERRED_COLUMNS).filter(
+    (col) => !hidden.has(col)
+  );
   resultsState.rows = rows;
   resultsState.sortColumn = null;
   resultsState.sortDir = "asc";
@@ -432,6 +597,7 @@ function renderCompanySummary(companyInfoRows) {
     ["Company", info.COMPANY_NAME],
     ["Salesforce Account", info.SALESFORCE_ACCOUNT],
     ["Renewal Date", info.RENEWAL_DATE],
+    ["Platform Edition", info.PLATFORM_EDITION],
     ["CFID", info.CFID],
     ["SFID", info.SFID],
     ["Cluster", info.CLUSTER],
@@ -471,9 +637,13 @@ const SECONDARY_RESULT_BLOCKS = [agentConsoleUsageBlock, operatorUsageBlock, app
 
 function renderUsage(usage) {
   const accountFound = (usage.company_info ?? []).length > 0;
+  const platformEdition = (usage.company_info ?? [])[0]?.PLATFORM_EDITION ?? null;
 
   renderCompanySummary(usage.company_info ?? []);
-  renderProductDetailTable(usage.product_detail ?? [], !accountFound);
+  renderProductDetailTable(
+    augmentProductRowsWithIncluded(usage.product_detail ?? [], platformEdition),
+    !accountFound
+  );
 
   if (!accountFound) {
     // Nothing else is meaningful to show when the account itself couldn't
