@@ -67,7 +67,10 @@ COMPANY_LOOKUP AS (
         BILLINGCOUNTRY,
         SALESFORCE_ACCOUNT
     FROM GROWTH_BRAZE_FOUNDATIONS.MONGO_PLATFORM.COMPANIES
+    -- Accept either the company name or the Salesforce account ID as the
+    -- search term (e.g. "King.com Limited" or "001d000001g62lWAAQ").
     WHERE UPPER(TRIM(COMPANY_NAME)) = UPPER(TRIM((SELECT target_account_name FROM vars)))
+       OR UPPER(TRIM(SALESFORCE_ACCOUNT)) = UPPER(TRIM((SELECT target_account_name FROM vars)))
     LIMIT 1
 ),
 
@@ -448,6 +451,39 @@ function normalizeUsagePayload(raw) {
 let activeEmail = null;
 let activeConnection = null;
 
+/**
+ * In-memory cache backing the customer-name type-ahead. Holds the full list of
+ * company names (each with a pre-lowercased copy for cheap matching) for the
+ * currently-connected email, loaded once per connection. Suggestions are then
+ * served from memory with no per-keystroke Snowflake round-trip.
+ */
+let companyNamesCache = null; // Array<{ name: string, lower: string }> | null
+let companyNamesCacheEmail = null;
+let companyNamesLoading = null; // Promise while the one-time load is in flight
+
+function loadCompanyNames(conn) {
+  return new Promise((resolve, reject) => {
+    conn.execute({
+      sqlText:
+        "SELECT DISTINCT COMPANY_NAME FROM GROWTH_BRAZE_FOUNDATIONS.MONGO_PLATFORM.COMPANIES WHERE COMPANY_NAME IS NOT NULL",
+      complete: (err, stmt, rows) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        const entries = [];
+        for (const row of rows || []) {
+          const name = row?.COMPANY_NAME;
+          if (typeof name === "string" && name.trim() !== "") {
+            entries.push({ name, lower: name.toLowerCase() });
+          }
+        }
+        resolve(entries);
+      },
+    });
+  });
+}
+
 function destroyConnection(conn) {
   return new Promise((resolve) => {
     if (!conn) {
@@ -467,6 +503,11 @@ async function ensureSnowflakeConnection(email) {
     await destroyConnection(activeConnection);
     activeConnection = null;
     activeEmail = email;
+    // The type-ahead cache is keyed to a single connection/email, so drop it
+    // whenever we switch users.
+    companyNamesCache = null;
+    companyNamesCacheEmail = null;
+    companyNamesLoading = null;
   }
 
   if (activeConnection?.isUp()) {
@@ -570,6 +611,83 @@ app.get("/api/session", (req, res) => {
   res.json({
     snowflakeSessionReused: hasFileRecord || Boolean(liveForEmail),
   });
+});
+
+app.post("/api/authenticate", async (req, res) => {
+  const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+  if (!email) {
+    return res.status(400).json({ error: "Email Address is required." });
+  }
+  try {
+    // Establishes (or reuses) the persistent Snowflake connection, opening the
+    // Okta browser flow if needed. Serialized so concurrent clicks can't race
+    // two connection attempts.
+    await runSerialized(() => ensureSnowflakeConnection(email));
+    const key = authKey(email);
+    if (!establishedAuthKeys.has(key)) {
+      establishedAuthKeys.add(key);
+      await persistAuthKeys(establishedAuthKeys);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    const message =
+      err && typeof err === "object" && "message" in err
+        ? String(err.message)
+        : "Snowflake authentication failed.";
+    res.status(500).json({ error: message });
+  }
+});
+
+app.get("/api/suggest", async (req, res) => {
+  const email = typeof req.query.email === "string" ? req.query.email.trim() : "";
+  const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+  if (!email || q.length < 2) {
+    return res.json({ suggestions: [] });
+  }
+
+  // Only serve suggestions off an already-live connection. We deliberately
+  // never open a new connection here, so typing can't trigger an Okta prompt -
+  // suggestions simply switch on once a session exists (i.e. after the first
+  // query has authenticated this email).
+  const connectionUp = activeEmail === email && Boolean(activeConnection?.isUp());
+  if (!connectionUp) {
+    return res.json({ suggestions: [], needsConnection: true });
+  }
+
+  try {
+    if (companyNamesCache === null || companyNamesCacheEmail !== email) {
+      if (!companyNamesLoading) {
+        companyNamesCacheEmail = email;
+        const conn = activeConnection;
+        companyNamesLoading = runSerialized(() => loadCompanyNames(conn))
+          .then((entries) => {
+            companyNamesCache = entries;
+            return entries;
+          })
+          .finally(() => {
+            companyNamesLoading = null;
+          });
+      }
+      await companyNamesLoading;
+    }
+
+    const needle = q.toLowerCase();
+    const entries = companyNamesCache || [];
+    const startsWith = [];
+    const contains = [];
+    for (const entry of entries) {
+      if (entry.lower.startsWith(needle)) {
+        startsWith.push(entry.name);
+      } else if (entry.lower.includes(needle)) {
+        contains.push(entry.name);
+      }
+    }
+    // Prefix matches first (most relevant), then substring matches, capped.
+    const suggestions = [...startsWith, ...contains].slice(0, 10);
+    res.json({ suggestions });
+  } catch {
+    res.json({ suggestions: [] });
+  }
 });
 
 app.post("/api/query", async (req, res) => {

@@ -35,21 +35,43 @@
           <input
             type="email"
             name="email"
+            id="email-input"
             autocomplete="username"
             required
             placeholder="you@company.com"
           />
         </label>
-        <label>
-          <span>Customer Name</span>
-          <input
-            type="text"
-            name="customerName"
-            required
-            placeholder="Exact account name"
-          />
-        </label>
-        <button type="submit" id="submit-btn">Run query</button>
+
+        <div id="auth-row">
+          <button type="button" id="auth-btn">Authenticate</button>
+        </div>
+
+        <div id="search-section" class="form-section" hidden>
+          <label>
+            <span>Customer Name or Salesforce Account ID</span>
+            <div class="typeahead">
+              <input
+                type="text"
+                name="customerName"
+                id="customer-name-input"
+                required
+                autocomplete="off"
+                placeholder="Exact account name or Salesforce ID (001…)"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded="false"
+                aria-controls="customer-suggestions"
+              />
+              <ul
+                id="customer-suggestions"
+                class="suggestions"
+                role="listbox"
+                hidden
+              ></ul>
+            </div>
+          </label>
+          <button type="submit" id="submit-btn">Run query</button>
+        </div>
       </form>
 
       <div id="status" class="status" hidden></div>
