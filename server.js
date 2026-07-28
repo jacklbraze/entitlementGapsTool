@@ -211,12 +211,24 @@ PRODUCT_DETAIL_MERGED AS (
 ),
 
 BANNER_USAGE AS (
-    -- COUNT(*) never returns NULL (it's 0 over an empty set), so no IFNULL needed here
+    -- COUNT(*) never returns NULL (0 over an empty set), so no IFNULL needed.
+    -- Exposes the raw impression count: IS_USING is derived as count > 0 and
+    -- the same count populates the Banners CHANNEL_USAGE cell.
     SELECT (
         SELECT COUNT(*)
         FROM DI_PRODUCTION.DATALAKE.USERS_MESSAGES_BANNER_IMPRESSION
         WHERE APP_GROUP_ID IN (SELECT AG_ID FROM APP_GROUPS)
-    ) > 0 AS HAS_USAGE
+    ) AS IMPRESSION_COUNT
+),
+
+CONTENT_CARD_USAGE AS (
+    -- Content Card impression count; drives IS_USING (count > 0) and the
+    -- Content Cards CHANNEL_USAGE cell.
+    SELECT (
+        SELECT COUNT(*)
+        FROM DI_PRODUCTION.DATALAKE.USERS_MESSAGES_CONTENTCARD_IMPRESSION
+        WHERE APP_GROUP_ID IN (SELECT AG_ID FROM APP_GROUPS)
+    ) AS IMPRESSION_COUNT
 ),
 
 LANDING_PAGE_USAGE AS (
@@ -238,14 +250,37 @@ SNOWFLAKE_CREDITS_USAGE AS (
     ), 0) > 0 AS HAS_USAGE
 ),
 
-BANNER_PURCHASED_FLAG AS (
+-- Table-based purchase signal for Content Cards: whether the product_detail
+-- table lists Content Cards as purchased. Older contracts state Content Cards
+-- as an individual line item here; newer contracts often don't, so this is
+-- combined (OR) with impression usage below to decide IS_PURCHASED for both
+-- Content Cards and Banners (Banners are bundled with Content Cards).
+CONTENT_CARDS_PURCHASED_IN_TABLE AS (
+    SELECT COUNT_IF(IS_PURCHASED) > 0 AS IS_PURCHASED
+    FROM PRODUCT_DETAIL_MERGED
+    WHERE PRODUCT ILIKE '%Content Card%'
+),
+
+-- Combined Content Cards purchase signal: purchased if the table lists it
+-- (older contracts) OR content card impressions exist (newer contracts). This
+-- is the single source of truth for whether the customer has Content Cards,
+-- and — because Banners are bundled with Content Cards — it also grants Banners.
+CONTENT_CARDS_PURCHASED AS (
     SELECT (
-        SELECT STATUS
-        FROM GROWTH_BRAZE_FOUNDATIONS.MONGO_PLATFORM.FEATURE_FLIPPER_AUDIT_LOGS_VIEW
-        WHERE c_id = (SELECT CFID FROM COMPANY_LOOKUP)
-          AND NAME = 'banners'
-        LIMIT 1
-    ) AS STATUS
+        (SELECT IS_PURCHASED FROM CONTENT_CARDS_PURCHASED_IN_TABLE)
+        OR (SELECT IMPRESSION_COUNT FROM CONTENT_CARD_USAGE) > 0
+    ) AS IS_PURCHASED
+),
+
+-- The "Landing Pages Pro" SKU means the customer purchased additional landing
+-- pages; its ALLOTMENT is how many extra. Drives the single consolidated
+-- Landing Pages line item's IS_PURCHASED / ALLOTMENT.
+LANDING_PAGES_PRO AS (
+    SELECT
+        COUNT(*) > 0 AS IS_PURCHASED,
+        MAX(ALLOTMENT) AS ALLOTMENT
+    FROM PRODUCT_DETAIL_MERGED
+    WHERE PRODUCT ILIKE '%Landing Page%Pro%'
 ),
 
 PRODUCT_DETAIL AS (
@@ -256,22 +291,62 @@ PRODUCT_DETAIL AS (
         ALLOTMENT,
         IS_PURCHASED,
         CASE
-            WHEN PRODUCT ILIKE '%Landing Page%' THEN (SELECT HAS_USAGE FROM LANDING_PAGE_USAGE)
             WHEN PRODUCT ILIKE '%Snowflake Credit%' THEN (SELECT HAS_USAGE FROM SNOWFLAKE_CREDITS_USAGE)
             ELSE IS_USING
         END AS IS_USING,
         CHANNEL_USAGE
     FROM PRODUCT_DETAIL_MERGED
+    -- Landing Pages and Content Cards are each surfaced as a single dedicated
+    -- row below (Content Cards / Banners built from impression usage), so drop
+    -- their raw product rows here to avoid duplicating those line items.
+    WHERE PRODUCT NOT ILIKE '%Landing Page%'
+      AND PRODUCT NOT ILIKE '%Content Card%'
 
     UNION ALL
 
+    -- Content Cards: an add-on channel. IS_PURCHASED is TRUE when the table
+    -- lists it as purchased (older contracts) OR impressions exist (proof of
+    -- use, hence purchase, on newer contracts). IS_USING and the CHANNEL_USAGE
+    -- count come from content card impressions keyed on the app group ids.
+    SELECT
+        (SELECT SALESFORCE_ACCOUNT FROM COMPANY_LOOKUP) AS ACCOUNT_ID,
+        (SELECT COMPANY_NAME FROM COMPANY_LOOKUP) AS ACCOUNT_NAME,
+        'Content Cards' AS PRODUCT,
+        NULL AS ALLOTMENT,
+        (SELECT IS_PURCHASED FROM CONTENT_CARDS_PURCHASED) AS IS_PURCHASED,
+        (SELECT IMPRESSION_COUNT FROM CONTENT_CARD_USAGE) > 0 AS IS_USING,
+        (SELECT IMPRESSION_COUNT FROM CONTENT_CARD_USAGE) AS CHANNEL_USAGE
+
+    UNION ALL
+
+    -- Banners: bundled with Content Cards, so purchasing Content Cards
+    -- automatically grants Banners. IS_PURCHASED is therefore TRUE whenever
+    -- Content Cards is purchased (its full table-OR-impressions signal) OR
+    -- banner impressions exist. IS_USING and the CHANNEL_USAGE count come from
+    -- banner impressions only (a customer can own Banners without sending any).
     SELECT
         (SELECT SALESFORCE_ACCOUNT FROM COMPANY_LOOKUP) AS ACCOUNT_ID,
         (SELECT COMPANY_NAME FROM COMPANY_LOOKUP) AS ACCOUNT_NAME,
         'Banners' AS PRODUCT,
         NULL AS ALLOTMENT,
-        (SELECT STATUS FROM BANNER_PURCHASED_FLAG) AS IS_PURCHASED,
-        (SELECT HAS_USAGE FROM BANNER_USAGE) AS IS_USING,
+        (SELECT IS_PURCHASED FROM CONTENT_CARDS_PURCHASED)
+            OR (SELECT IMPRESSION_COUNT FROM BANNER_USAGE) > 0 AS IS_PURCHASED,
+        (SELECT IMPRESSION_COUNT FROM BANNER_USAGE) > 0 AS IS_USING,
+        (SELECT IMPRESSION_COUNT FROM BANNER_USAGE) AS CHANNEL_USAGE
+
+    UNION ALL
+
+    -- Landing Pages: always shown. A "Landing Pages Pro" SKU means the customer
+    -- purchased additional landing pages, so its presence drives IS_PURCHASED
+    -- and its ALLOTMENT carries the extra count. Usage comes from landing page
+    -- impressions keyed on the app group ids.
+    SELECT
+        (SELECT SALESFORCE_ACCOUNT FROM COMPANY_LOOKUP) AS ACCOUNT_ID,
+        (SELECT COMPANY_NAME FROM COMPANY_LOOKUP) AS ACCOUNT_NAME,
+        'Landing Pages' AS PRODUCT,
+        (SELECT ALLOTMENT FROM LANDING_PAGES_PRO) AS ALLOTMENT,
+        (SELECT IS_PURCHASED FROM LANDING_PAGES_PRO) AS IS_PURCHASED,
+        (SELECT HAS_USAGE FROM LANDING_PAGE_USAGE) AS IS_USING,
         NULL AS CHANNEL_USAGE
 ),
 
