@@ -337,24 +337,33 @@ function compareCells(a, b, col) {
 }
 
 /**
- * Default ordering (used until the user clicks a column to sort): rows that
- * represent an entitlement gap - IS_PURCHASED = TRUE and IS_USING = FALSE/NULL
- * - float to the top. Original row order is preserved within each group.
+ * A row is an "entitlement gap" - the rows to focus on first - when the feature
+ * is either purchased separately or included in the customer's edition
+ * (IS_PURCHASED or INCLUDED = TRUE) but isn't actually being used (IS_USING is
+ * FALSE or NULL). These rows are floated to the top by default and visually
+ * highlighted in the table.
  */
-function applyDefaultOrder(rows) {
+function isEntitlementGapRow(row) {
+  const colIncluded = findColumnKey(resultsState.columns, "INCLUDED");
   const colPurchased = findColumnKey(resultsState.columns, "IS_PURCHASED");
   const colUsing = findColumnKey(resultsState.columns, "IS_USING");
-  if (!colPurchased || !colUsing) return rows;
+  const entitled =
+    (colPurchased && parseBoolCell(row[colPurchased]) === "TRUE") ||
+    (colIncluded && parseBoolCell(row[colIncluded]) === "TRUE");
+  const usingActive = Boolean(colUsing) && parseBoolCell(row[colUsing]) === "TRUE";
+  return Boolean(entitled) && !usingActive;
+}
 
-  const isGap = (row) =>
-    parseBoolCell(row[colPurchased]) === "TRUE" &&
-    parseBoolCell(row[colUsing]) !== "TRUE";
-
+/**
+ * Default ordering (used until the user clicks a column to sort): entitlement
+ * gap rows float to the top. Original row order is preserved within each group.
+ */
+function applyDefaultOrder(rows) {
   return rows
     .map((row, i) => ({ row, i }))
     .sort((a, b) => {
-      const rankA = isGap(a.row) ? 0 : 1;
-      const rankB = isGap(b.row) ? 0 : 1;
+      const rankA = isEntitlementGapRow(a.row) ? 0 : 1;
+      const rankB = isEntitlementGapRow(b.row) ? 0 : 1;
       return rankA - rankB || a.i - b.i;
     })
     .map((entry) => entry.row);
@@ -405,6 +414,10 @@ function renderTableBody(columns, rows) {
 
   for (const row of rows) {
     const tr = document.createElement("tr");
+    if (isEntitlementGapRow(row)) {
+      tr.classList.add("gap-row");
+      tr.title = "Entitled (purchased or included) but not being used — review first";
+    }
     for (const col of columns) {
       const td = document.createElement("td");
       td.textContent = formatCellValue(row[col]);
