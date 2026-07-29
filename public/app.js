@@ -191,7 +191,6 @@ const resultsState = {
   rows: [],
   sortColumn: null,
   sortDir: "asc",
-  accountNotFound: false,
 };
 
 function showStatus(message, kind) {
@@ -379,17 +378,6 @@ function applySort(rows) {
 function renderTableBody(columns, rows) {
   resultsBody.innerHTML = "";
 
-  if (resultsState.accountNotFound) {
-    const tr = document.createElement("tr");
-    const td = document.createElement("td");
-    td.colSpan = Math.max(columns.length, 1);
-    td.innerHTML =
-      '<p class="empty-hint">No account was found, please check that the account name or Salesforce account ID you entered matches the value in Salesforce</p>';
-    tr.appendChild(td);
-    resultsBody.appendChild(tr);
-    return;
-  }
-
   if (!columns.length) {
     resultsBody.innerHTML =
       '<tr><td colspan="1"><p class="empty-hint">No columns returned.</p></td></tr>';
@@ -499,7 +487,7 @@ function refreshResultsView() {
   renderTableBody(resultsState.columns, sorted);
 }
 
-function renderProductDetailTable(rows, accountNotFound = false) {
+function renderProductDetailTable(rows) {
   const hidden = new Set(PRODUCT_DETAIL_HIDDEN_COLUMNS);
   resultsState.columns = orderedColumns(rows, PRODUCT_DETAIL_PREFERRED_COLUMNS).filter(
     (col) => !hidden.has(col)
@@ -507,7 +495,6 @@ function renderProductDetailTable(rows, accountNotFound = false) {
   resultsState.rows = rows;
   resultsState.sortColumn = null;
   resultsState.sortDir = "asc";
-  resultsState.accountNotFound = accountNotFound;
   clearFilterCheckboxes();
   refreshResultsView();
 }
@@ -650,24 +637,24 @@ const SECONDARY_RESULT_BLOCKS = [agentConsoleUsageBlock, operatorUsageBlock, app
 
 function renderUsage(usage) {
   const accountFound = (usage.company_info ?? []).length > 0;
+
+  if (!accountFound) {
+    // Don't show the Results section at all when the account can't be resolved;
+    // surface the message below the Run query button (in the status area).
+    resultsSection.hidden = true;
+    showStatus(
+      "No account was found, please check that the account name or Salesforce account ID you entered matches the value in Salesforce",
+      "error"
+    );
+    return;
+  }
+
   const platformEdition = (usage.company_info ?? [])[0]?.PLATFORM_EDITION ?? null;
 
   renderCompanySummary(usage.company_info ?? []);
   renderProductDetailTable(
-    augmentProductRowsWithIncluded(usage.product_detail ?? [], platformEdition),
-    !accountFound
+    augmentProductRowsWithIncluded(usage.product_detail ?? [], platformEdition)
   );
-
-  if (!accountFound) {
-    // Nothing else is meaningful to show when the account itself couldn't
-    // be resolved - hide every secondary section and leave just the
-    // "No account was found" row in the Product Entitlements table.
-    for (const block of SECONDARY_RESULT_BLOCKS) {
-      if (block) block.hidden = true;
-    }
-    resultsSection.hidden = false;
-    return;
-  }
 
   for (const block of SECONDARY_RESULT_BLOCKS) {
     if (block) block.hidden = false;
@@ -783,7 +770,7 @@ form.addEventListener("submit", async (e) => {
     if (sessionRes.ok) {
       const session = await sessionRes.json();
       if (session.snowflakeSessionReused) {
-        waitMessage = "Running query, please wait a few seconds... If a new tab opens, complete Okta sign-in";
+        waitMessage = "Running query, please wait a few seconds...";
       }
     }
   } catch {
