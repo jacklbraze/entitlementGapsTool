@@ -8,3 +8,5 @@
 8. Open `http://localhost:3000` in chrome
 9. Enter your Braze email address and click "Authenticate" and wait for Snowflake to finish authentication
 10. Enter the customer account name or Salesforce account ID and click Run query
+
+More information on Confluence here: https://confluence.atl.braze.com/wiki/x/L4BYX
