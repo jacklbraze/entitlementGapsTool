@@ -495,6 +495,13 @@ function renderTableBody(columns, rows) {
   }
 }
 
+/** True when a CHANNEL_USAGE cell is a number <= 5 (i.e. the channel is barely/not used yet). */
+function isLowChannelUsage(value) {
+  if (value === null || value === undefined || value === "") return false;
+  const n = Number(value);
+  return Number.isFinite(n) && n <= 5;
+}
+
 /** Builds a single product <tr>, flagging entitlement-gap rows for highlighting. */
 function renderProductRow(columns, row) {
   const tr = document.createElement("tr");
@@ -503,6 +510,7 @@ function renderProductRow(columns, row) {
     tr.title = "Entitled (purchased or included) but not being used — review first";
   }
   const allotmentKey = findColumnKey(columns, "ALLOTMENT");
+  const channelUsageKey = findColumnKey(columns, "CHANNEL_USAGE");
   for (const col of columns) {
     const td = document.createElement("td");
     const value = row[col];
@@ -510,6 +518,15 @@ function renderProductRow(columns, row) {
     // "NULL" text used elsewhere.
     if (col === allotmentKey && (value === null || value === undefined)) {
       td.textContent = "";
+    } else if (col === channelUsageKey && isLowChannelUsage(value)) {
+      // Low usage (<= 5): flag the channel as effectively unused.
+      td.textContent = formatCellValue(value);
+      const warn = document.createElement("span");
+      warn.className = "usage-warning";
+      warn.textContent = "⚠️";
+      warn.title = "This channel hasn't been used yet by the customer";
+      warn.setAttribute("aria-label", "Warning: channel not yet used");
+      td.appendChild(warn);
     } else {
       td.textContent = formatCellValue(value);
     }

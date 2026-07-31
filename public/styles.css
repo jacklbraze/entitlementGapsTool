@@ -465,6 +465,12 @@ tbody tr:hover td {
   background: color-mix(in srgb, var(--orange) 9%, transparent);
 }
 
+/* Low-usage warning triangle after a CHANNEL_USAGE value. */
+.usage-warning {
+  margin-left: 0.4rem;
+  cursor: help;
+}
+
 /* Category section header rows within the Product Entitlements table. */
 tbody tr.category-row td {
   background: linear-gradient(
