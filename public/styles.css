@@ -465,6 +465,31 @@ tbody tr:hover td {
   background: color-mix(in srgb, var(--orange) 9%, transparent);
 }
 
+/* Category section header rows within the Product Entitlements table. */
+tbody tr.category-row td {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--purple) 40%, transparent) 0%,
+    color-mix(in srgb, var(--purple) 20%, transparent) 100%
+  );
+  color: var(--light-pink);
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 0.55rem 0.9rem;
+  border-top: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+tbody tr.category-row:hover td {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--purple) 40%, transparent) 0%,
+    color-mix(in srgb, var(--purple) 20%, transparent) 100%
+  );
+}
+
 /* Entitlement-gap rows: entitled (purchased or included in edition) but not
    in use. Highlighted so they're the first thing the user reviews. */
 tbody tr.gap-row td {

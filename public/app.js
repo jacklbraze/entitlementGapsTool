@@ -58,79 +58,108 @@ const PRODUCT_DETAIL_HIDDEN_COLUMNS = ["ACCOUNT_ID", "ACCOUNT_NAME"];
 
 /**
  * Static entitlement reference, transcribed from the "Braze Platform
- * Entitlements FY27" CSV. Each entry maps a feature to its availability in the
- * four platform editions, in this order: [Braze Go, Braze Select, Braze Pro,
- * Braze Enterprise]. A cell of Included / Limited / Pro Only means the feature
- * comes with that edition (Included = TRUE); Add-on / Not Included means it is
- * not part of the edition and must be purchased separately (Included = FALSE).
+ * Entitlements FY27" CSV. Each entry is [feature, category, editions], where
+ * editions are the availability in [Braze Go, Braze Select, Braze Pro, Braze
+ * Enterprise]. A cell of Included / Limited / Pro Only means the feature comes
+ * with that edition (Included = TRUE); Add-on / Not Included means it is not
+ * part of the edition and must be purchased separately (Included = FALSE). The
+ * category drives the grouping in the Product Entitlements table.
  */
 const EDITION_ORDER = ["go", "select", "pro", "enterprise"];
 const INCLUDED_CELL_VALUES = new Set(["included", "limited", "pro only"]);
 const ENTITLEMENT_REFERENCE = [
-  ["Cloud Data Ingestion", ["Included", "Included", "Included", "Included"]],
-  ["Data Transformation", ["Limited", "Limited", "Limited", "Limited"]],
-  ["Automated ID Resolution", ["Included", "Included", "Included", "Included"]],
-  ["Segment Extensions", ["Limited", "Limited", "Limited", "Limited"]],
-  ["SQL Segment Extensions", ["Limited", "Limited", "Limited", "Limited"]],
-  ["CDI Segments (Zero-Copy)", ["Included", "Included", "Included", "Included"]],
-  ["Catalogs", ["Limited", "Limited", "Limited", "Limited"]],
-  ["Data Management", ["Included", "Included", "Included", "Included"]],
-  ["Reporting and Analytics", ["Included", "Included", "Included", "Included"]],
-  ["Query Builder", ["Limited", "Limited", "Limited", "Limited"]],
-  ["Data Distribution", ["Add-on", "Add-on", "Add-on", "Add-on"]],
-  ["Technology Alloys Partner Network (180+)", ["Included", "Included", "Included", "Included"]],
-  ["Automated User Provisioning (SCIM)", ["Not Included", "Included", "Included", "Included"]],
-  ["Automated Security Events", ["Not Included", "Included", "Included", "Included"]],
-  ["Identifier Field-Level Encryption", ["Not Included", "Included", "Included", "Included"]],
-  ["Teams", ["Not Included", "Not Included", "Included", "Included"]],
-  ["HIPAA", ["Limited", "Limited", "Limited", "Limited"]],
-  ["Local Data Centers", ["Limited", "Limited", "Limited", "Limited"]],
-  ["Two-Factor Authorization / SSO", ["Limited", "Limited", "Limited", "Limited"]],
-  ["Active Campaigns (up to 100/250/1000/10000)", ["Included", "Included", "Included", "Included"]],
-  ["Active Canvases (up to 50/125/500/5000)", ["Included", "Included", "Included", "Included"]],
-  ["Suppression Lists", ["Included", "Included", "Included", "Included"]],
-  ["Global Control Group", ["Included", "Included", "Included", "Included"]],
-  ["Frequency Capping", ["Included", "Included", "Included", "Included"]],
-  ["Copywriting (Tone Control & Brand Guidelines)", ["Included", "Included", "Included", "Included"]],
-  ["Image Generator", ["Included", "Included", "Included", "Included"]],
-  ["AI Content QA", ["Included", "Included", "Included", "Included"]],
-  ["AI SQL Segment Extensions", ["Included", "Included", "Included", "Included"]],
-  ["AI Query Builder", ["Included", "Included", "Included", "Included"]],
-  ["Winning Variant", ["Included", "Included", "Included", "Included"]],
-  ["Winning Path", ["Included", "Included", "Included", "Included"]],
-  ["Intelligence Suite", ["Included", "Included", "Included", "Included"]],
-  ["Liquid Assistant", ["Included", "Included", "Included", "Included"]],
-  ["Personalized Path", ["Included", "Included", "Included", "Included"]],
-  ["Personalized Variant", ["Included", "Included", "Included", "Included"]],
-  ["Predictive Suite", ["Not Included", "Not Included", "Pro Only", "Pro Only"]],
-  ["AI Item Recommendations", ["Not Included", "Not Included", "Pro Only", "Pro Only"]],
-  ["BrazeAI Agent Console", ["Included", "Included", "Included", "Included"]],
-  ["BrazeAI Operator", ["Included", "Included", "Included", "Included"]],
-  ["Push (Mobile & Web)", ["Included", "Included", "Included", "Included"]],
-  ["In-App Messaging (Mobile & Web)", ["Included", "Included", "Included", "Included"]],
-  ["Email", ["Add-on", "Add-on", "Add-on", "Add-on"]],
-  ["SMS / MMS / RCS", ["Add-on", "Add-on", "Add-on", "Add-on"]],
-  ["WhatsApp", ["Add-on", "Add-on", "Add-on", "Add-on"]],
-  ["LINE", ["Add-on", "Add-on", "Add-on", "Add-on"]],
-  ["Content Cards", ["Add-on", "Add-on", "Add-on", "Add-on"]],
-  ["Banners", ["Add-on", "Add-on", "Add-on", "Add-on"]],
-  ["Audience Sync", ["Add-on", "Add-on", "Add-on", "Add-on"]],
-  ["Webhooks", ["Add-on", "Add-on", "Add-on", "Add-on"]],
-  ["Message Archiving", ["Add-on", "Add-on", "Add-on", "Add-on"]],
-  ["AI Agent Console", ["Add-on", "Add-on", "Add-on", "Add-on"]],
-  ["Landing Pages", ["Limited", "Limited", "Limited", "Limited"]],
-  ["Feature Flags", ["Limited", "Limited", "Limited", "Limited"]],
-  ["Braze SDKs", ["Included", "Included", "Included", "Included"]],
-  ["REST API", ["Included", "Included", "Included", "Included"]],
-  ["Multivariate & A/B Testing", ["Included", "Included", "Included", "Included"]],
-  ["Campaign Analytics", ["Included", "Included", "Included", "Included"]],
-  ["Canvas Analytics", ["Included", "Included", "Included", "Included"]],
-  ["Funnel Reports", ["Included", "Included", "Included", "Included"]],
-  ["Retention Reports", ["Included", "Included", "Included", "Included"]],
-  ["Report Builder", ["Included", "Included", "Included", "Included"]],
-  ["Location Tracking", ["Included", "Included", "Included", "Included"]],
-  ["Geofences", ["Included", "Included", "Included", "Included"]],
-  ["Location Targeting", ["Included", "Included", "Included", "Included"]],
+  ["Cloud Data Ingestion", "Data Platform", ["Included", "Included", "Included", "Included"]],
+  ["Data Transformation", "Data Platform", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Automated ID Resolution", "Data Platform", ["Included", "Included", "Included", "Included"]],
+  ["Segment Extensions", "Data Platform", ["Limited", "Limited", "Limited", "Limited"]],
+  ["SQL Segment Extensions", "Data Platform", ["Limited", "Limited", "Limited", "Limited"]],
+  ["CDI Segments (Zero-Copy)", "Data Platform", ["Included", "Included", "Included", "Included"]],
+  ["Catalogs", "Data Platform", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Data Management", "Data Platform", ["Included", "Included", "Included", "Included"]],
+  ["Reporting and Analytics", "Data Platform", ["Included", "Included", "Included", "Included"]],
+  ["Query Builder", "Data Platform", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Data Distribution", "Data Platform", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["Technology Alloys Partner Network (180+)", "Data Platform", ["Included", "Included", "Included", "Included"]],
+  ["Automated User Provisioning (SCIM)", "Trust & Infrastructure", ["Not Included", "Included", "Included", "Included"]],
+  ["Automated Security Events", "Trust & Infrastructure", ["Not Included", "Included", "Included", "Included"]],
+  ["Identifier Field-Level Encryption", "Trust & Infrastructure", ["Not Included", "Included", "Included", "Included"]],
+  ["Teams", "Trust & Infrastructure", ["Not Included", "Not Included", "Included", "Included"]],
+  ["HIPAA", "Trust & Infrastructure", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Local Data Centers", "Trust & Infrastructure", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Two-Factor Authorization / SSO", "Trust & Infrastructure", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Active Campaigns (up to 100/250/1000/10000)", "Orchestration", ["Included", "Included", "Included", "Included"]],
+  ["Active Canvases (up to 50/125/500/5000)", "Orchestration", ["Included", "Included", "Included", "Included"]],
+  ["Suppression Lists", "Orchestration", ["Included", "Included", "Included", "Included"]],
+  ["Global Control Group", "Orchestration", ["Included", "Included", "Included", "Included"]],
+  ["Frequency Capping", "Orchestration", ["Included", "Included", "Included", "Included"]],
+  ["Copywriting (Tone Control & Brand Guidelines)", "BrazeAI", ["Included", "Included", "Included", "Included"]],
+  ["Image Generator", "BrazeAI", ["Included", "Included", "Included", "Included"]],
+  ["AI Content QA", "BrazeAI", ["Included", "Included", "Included", "Included"]],
+  ["AI SQL Segment Extensions", "BrazeAI", ["Included", "Included", "Included", "Included"]],
+  ["AI Query Builder", "BrazeAI", ["Included", "Included", "Included", "Included"]],
+  ["Winning Variant", "BrazeAI", ["Included", "Included", "Included", "Included"]],
+  ["Winning Path", "BrazeAI", ["Included", "Included", "Included", "Included"]],
+  ["Intelligence Suite", "BrazeAI", ["Included", "Included", "Included", "Included"]],
+  ["Liquid Assistant", "BrazeAI", ["Included", "Included", "Included", "Included"]],
+  ["Personalized Path", "BrazeAI", ["Included", "Included", "Included", "Included"]],
+  ["Personalized Variant", "BrazeAI", ["Included", "Included", "Included", "Included"]],
+  ["Predictive Suite", "BrazeAI", ["Not Included", "Not Included", "Pro Only", "Pro Only"]],
+  ["AI Item Recommendations", "BrazeAI", ["Not Included", "Not Included", "Pro Only", "Pro Only"]],
+  ["BrazeAI Agent Console", "BrazeAI", ["Included", "Included", "Included", "Included"]],
+  ["BrazeAI Operator", "BrazeAI", ["Included", "Included", "Included", "Included"]],
+  ["Push (Mobile & Web)", "Channels", ["Included", "Included", "Included", "Included"]],
+  ["In-App Messaging (Mobile & Web)", "Channels", ["Included", "Included", "Included", "Included"]],
+  ["Email", "Channels", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["SMS / MMS / RCS", "Channels", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["WhatsApp", "Channels", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["LINE", "Channels", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["Content Cards", "Channels", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["Banners", "Channels", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["Audience Sync", "Data Platform", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["Webhooks", "Channels", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["Message Archiving", "Channels", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["AI Agent Console", "Channels", ["Add-on", "Add-on", "Add-on", "Add-on"]],
+  ["Landing Pages", "Channels", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Feature Flags", "Channels", ["Limited", "Limited", "Limited", "Limited"]],
+  ["Braze SDKs", "Data Platform", ["Included", "Included", "Included", "Included"]],
+  ["REST API", "Data Platform", ["Included", "Included", "Included", "Included"]],
+  ["Multivariate & A/B Testing", "Orchestration", ["Included", "Included", "Included", "Included"]],
+  ["Campaign Analytics", "Reporting", ["Included", "Included", "Included", "Included"]],
+  ["Canvas Analytics", "Reporting", ["Included", "Included", "Included", "Included"]],
+  ["Funnel Reports", "Reporting", ["Included", "Included", "Included", "Included"]],
+  ["Retention Reports", "Reporting", ["Included", "Included", "Included", "Included"]],
+  ["Report Builder", "Reporting", ["Included", "Included", "Included", "Included"]],
+  ["Location Tracking", "Location", ["Included", "Included", "Included", "Included"]],
+  ["Geofences", "Location", ["Included", "Included", "Included", "Included"]],
+  ["Location Targeting", "Location", ["Included", "Included", "Included", "Included"]],
+];
+
+/** Preferred top-to-bottom order for category sections; unknown categories are
+ * appended alphabetically and "Other" always sorts last. */
+const CATEGORY_ORDER = [
+  "Channels",
+  "BrazeAI",
+  "Data Platform",
+  "Orchestration",
+  "Trust & Infrastructure",
+  "Reporting",
+  "Location",
+];
+
+/**
+ * Keyword fallback for products not found in the reference above (e.g. newly
+ * added entitlements). Rules are evaluated in order; the first category with a
+ * whole-word keyword match wins. Keywords are matched against the normalized
+ * product name, so use the normalized form ("a b testing", "in app", etc.).
+ */
+const CATEGORY_KEYWORD_RULES = [
+  ["Channels", ["email", "sms", "mms", "rcs", "push", "whatsapp", "line", "banner", "banners", "content card", "content cards", "in app", "webhook", "webhooks", "message archiving", "landing page", "landing pages", "feature flag", "feature flags"]],
+  ["BrazeAI", ["ai", "brazeai", "predictive", "copywriting", "image generator", "intelligence", "liquid", "winning", "personalized", "recommendation", "recommendations", "agent", "operator"]],
+  ["Trust & Infrastructure", ["sso", "two factor", "scim", "provisioning", "security", "encryption", "hipaa", "data center", "data centers", "teams"]],
+  ["Orchestration", ["campaign", "campaigns", "canvas", "canvases", "frequency", "suppression", "control group", "multivariate", "a b testing", "ab testing"]],
+  ["Reporting", ["report", "reports", "analytics", "funnel", "retention"]],
+  ["Location", ["location", "geofence", "geofences"]],
+  ["Data Platform", ["data", "ingestion", "catalog", "catalogs", "segment", "segments", "sql", "query builder", "sdk", "sdks", "rest api", "api", "id resolution", "transformation", "currents", "distribution", "partner network", "snowflake", "audience sync"]],
 ];
 
 /** Normalizes a feature/product name for matching: drops parenthetical
@@ -145,8 +174,43 @@ function normalizeFeatureName(value) {
 }
 
 const ENTITLEMENT_BY_FEATURE = new Map(
-  ENTITLEMENT_REFERENCE.map(([feature, editions]) => [normalizeFeatureName(feature), editions])
+  ENTITLEMENT_REFERENCE.map(([feature, , editions]) => [normalizeFeatureName(feature), editions])
 );
+
+const CATEGORY_BY_FEATURE = new Map(
+  ENTITLEMENT_REFERENCE.map(([feature, category]) => [normalizeFeatureName(feature), category])
+);
+
+/**
+ * Resolves a product's category dynamically (hybrid approach):
+ *  1. Exact match against the FY27 reference (authoritative for known products).
+ *  2. Keyword rules against the normalized name (handles new/unknown products).
+ *  3. Falls back to "Other".
+ */
+function categoryForProduct(productName) {
+  const norm = normalizeFeatureName(productName);
+  if (!norm) return "Other";
+
+  const known = CATEGORY_BY_FEATURE.get(norm);
+  if (known) return known;
+
+  const padded = ` ${norm} `;
+  for (const [category, keywords] of CATEGORY_KEYWORD_RULES) {
+    if (keywords.some((kw) => padded.includes(` ${kw} `))) return category;
+  }
+  return "Other";
+}
+
+/** Orders the categories present in the data: known order first, then any extras alphabetically, then "Other" last. */
+function orderCategories(categories) {
+  const present = new Set(categories);
+  const known = CATEGORY_ORDER.filter((c) => present.has(c));
+  const extras = [...present]
+    .filter((c) => !CATEGORY_ORDER.includes(c) && c !== "Other")
+    .sort((a, b) => a.localeCompare(b));
+  const other = present.has("Other") ? ["Other"] : [];
+  return [...known, ...extras, ...other];
+}
 
 /** Maps a Salesforce SUCCESS_SUPPORT_LEVEL string to a 0-3 edition index, or -1 if unrecognized. */
 function editionIndexFromLevel(level) {
@@ -173,9 +237,12 @@ function computeIncluded(productName, editionIndex) {
   return INCLUDED_CELL_VALUES.has(String(editions[editionIndex] ?? "").toLowerCase());
 }
 
-/** Returns a copy of the product rows with an "Included" column derived from the platform edition. */
+/** Returns a copy of the product rows with an "Included" column derived from the
+ * platform edition. If the edition isn't one of the recognized platform editions
+ * (Braze Go / Select / Pro / Enterprise), the INCLUDED column is omitted entirely. */
 function augmentProductRowsWithIncluded(rows, platformEdition) {
   const editionIndex = editionIndexFromLevel(platformEdition);
+  if (editionIndex < 0) return rows;
   const productKey = findColumnKey(collectColumns(rows), "PRODUCT");
   return rows.map((row) => ({
     ...row,
@@ -400,19 +467,55 @@ function renderTableBody(columns, rows) {
     return;
   }
 
+  // Group rows into category sections, then order the sections and (within
+  // each) apply the active sort - gap rows first by default, or the column the
+  // user clicked. A category header row is emitted before each group.
+  const productKey = findColumnKey(columns, "PRODUCT");
+  const groups = new Map();
   for (const row of rows) {
-    const tr = document.createElement("tr");
-    if (isEntitlementGapRow(row)) {
-      tr.classList.add("gap-row");
-      tr.title = "Entitled (purchased or included) but not being used — review first";
-    }
-    for (const col of columns) {
-      const td = document.createElement("td");
-      td.textContent = formatCellValue(row[col]);
-      tr.appendChild(td);
-    }
-    resultsBody.appendChild(tr);
+    const category = productKey ? categoryForProduct(row[productKey]) : "Other";
+    if (!groups.has(category)) groups.set(category, []);
+    groups.get(category).push(row);
   }
+
+  for (const category of orderCategories([...groups.keys()])) {
+    const groupRows = applySort(groups.get(category));
+
+    const headerTr = document.createElement("tr");
+    headerTr.className = "category-row";
+    const headerTd = document.createElement("td");
+    headerTd.colSpan = columns.length;
+    headerTd.textContent = `${category} (${groupRows.length})`;
+    headerTr.appendChild(headerTd);
+    resultsBody.appendChild(headerTr);
+
+    for (const row of groupRows) {
+      resultsBody.appendChild(renderProductRow(columns, row));
+    }
+  }
+}
+
+/** Builds a single product <tr>, flagging entitlement-gap rows for highlighting. */
+function renderProductRow(columns, row) {
+  const tr = document.createElement("tr");
+  if (isEntitlementGapRow(row)) {
+    tr.classList.add("gap-row");
+    tr.title = "Entitled (purchased or included) but not being used — review first";
+  }
+  const allotmentKey = findColumnKey(columns, "ALLOTMENT");
+  for (const col of columns) {
+    const td = document.createElement("td");
+    const value = row[col];
+    // A null/empty ALLOTMENT renders as a blank cell rather than the literal
+    // "NULL" text used elsewhere.
+    if (col === allotmentKey && (value === null || value === undefined)) {
+      td.textContent = "";
+    } else {
+      td.textContent = formatCellValue(value);
+    }
+    tr.appendChild(td);
+  }
+  return tr;
 }
 
 function renderSortableHeader() {
@@ -483,8 +586,9 @@ function refreshResultsView() {
   updateFilterBarVisibility();
   renderSortableHeader();
   const filtered = applyRowFilters(resultsState.rows);
-  const sorted = applySort(filtered);
-  renderTableBody(resultsState.columns, sorted);
+  // Sorting is applied per category group inside renderTableBody so the
+  // section grouping stays intact.
+  renderTableBody(resultsState.columns, filtered);
 }
 
 function renderProductDetailTable(rows) {
