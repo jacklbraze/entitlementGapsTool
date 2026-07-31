@@ -471,6 +471,71 @@ tbody tr:hover td {
   cursor: help;
 }
 
+/* Top-level inclusion sections in the Product Entitlements table: features
+   included in the customer's edition vs paid add-ons. Deliberately more
+   prominent than the category sub-headers nested within them. */
+tbody tr.inclusion-row td {
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+  padding: 0.9rem;
+  border-top: 2px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+tbody tr.inclusion-row td::before {
+  display: inline-block;
+  margin-right: 0.5rem;
+  font-weight: 900;
+}
+
+tbody tr.inclusion-included td {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--purple) 62%, transparent) 0%,
+    color-mix(in srgb, var(--purple) 34%, transparent) 100%
+  );
+  color: #fff;
+  box-shadow: inset 5px 0 0 var(--pink);
+}
+
+tbody tr.inclusion-included td::before {
+  content: "✓";
+  color: var(--pink);
+}
+
+tbody tr.inclusion-addon td {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--orange) 34%, transparent) 0%,
+    color-mix(in srgb, var(--orange) 18%, transparent) 100%
+  );
+  color: var(--light-orange);
+  box-shadow: inset 5px 0 0 var(--orange);
+}
+
+tbody tr.inclusion-addon td::before {
+  content: "＋";
+  color: var(--orange);
+}
+
+/* Keep the header colours stable on hover (override the generic row hover). */
+tbody tr.inclusion-included:hover td {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--purple) 62%, transparent) 0%,
+    color-mix(in srgb, var(--purple) 34%, transparent) 100%
+  );
+}
+
+tbody tr.inclusion-addon:hover td {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--orange) 34%, transparent) 0%,
+    color-mix(in srgb, var(--orange) 18%, transparent) 100%
+  );
+}
+
 /* Category section header rows within the Product Entitlements table. */
 tbody tr.category-row td {
   background: linear-gradient(

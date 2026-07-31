@@ -252,6 +252,10 @@ function augmentProductRowsWithIncluded(rows, platformEdition) {
 
 let featureFlipperRows = [];
 
+/** The customer's platform edition label (e.g. "Braze Pro"), used to caption the
+ * "Included in ..." section. Null when the edition isn't recognized. */
+let productEditionLabel = null;
+
 /** @type {{ columns: string[], rows: Record<string, unknown>[], sortColumn: string | null, sortDir: 'asc' | 'desc' }} */
 const resultsState = {
   columns: [],
@@ -467,9 +471,45 @@ function renderTableBody(columns, rows) {
     return;
   }
 
-  // Group rows into category sections, then order the sections and (within
-  // each) apply the active sort - gap rows first by default, or the column the
-  // user clicked. A category header row is emitted before each group.
+  // When the INCLUDED column is present (recognized edition), split the table
+  // into two distinct top-level sections - features included in the edition vs
+  // paid add-ons - and group by category within each. Otherwise fall back to a
+  // single category grouping.
+  const includedKey = findColumnKey(columns, "INCLUDED");
+  if (includedKey) {
+    const included = rows.filter((r) => parseBoolCell(r[includedKey]) === "TRUE");
+    const addOns = rows.filter((r) => parseBoolCell(r[includedKey]) !== "TRUE");
+    renderInclusionSection(
+      columns,
+      `Included in ${productEditionLabel || "platform edition"}`,
+      "inclusion-included",
+      included
+    );
+    renderInclusionSection(columns, "Paid add-ons", "inclusion-addon", addOns);
+  } else {
+    renderCategoryGroups(columns, rows);
+  }
+}
+
+/** Renders a top-level inclusion section (header + its category groups), skipped when empty. */
+function renderInclusionSection(columns, label, className, rows) {
+  if (!rows.length) return;
+  const headerTr = document.createElement("tr");
+  headerTr.className = `inclusion-row ${className}`;
+  const headerTd = document.createElement("td");
+  headerTd.colSpan = columns.length;
+  headerTd.textContent = `${label} (${rows.length})`;
+  headerTr.appendChild(headerTd);
+  resultsBody.appendChild(headerTr);
+  renderCategoryGroups(columns, rows);
+}
+
+/**
+ * Groups rows into category sections, orders the sections, and (within each)
+ * applies the active sort - gap rows first by default, or the column the user
+ * clicked. A category header row is emitted before each group.
+ */
+function renderCategoryGroups(columns, rows) {
   const productKey = findColumnKey(columns, "PRODUCT");
   const groups = new Map();
   for (const row of rows) {
@@ -771,6 +811,7 @@ function renderUsage(usage) {
   }
 
   const platformEdition = (usage.company_info ?? [])[0]?.PLATFORM_EDITION ?? null;
+  productEditionLabel = editionIndexFromLevel(platformEdition) >= 0 ? platformEdition : null;
 
   renderCompanySummary(usage.company_info ?? []);
   renderProductDetailTable(
