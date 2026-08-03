@@ -6,6 +6,20 @@ const resultsFiltersEl = document.getElementById("results-filters");
 const resultsHead = document.getElementById("results-head");
 const resultsBody = document.getElementById("results-body");
 const submitBtn = document.getElementById("submit-btn");
+const loadingBar = document.getElementById("loading-bar");
+const submitBtnDefaultLabel = submitBtn.textContent;
+
+/** Toggles the query loading state: disables the button, swaps in a spinner + label, and shows the loading bar. */
+function setQueryLoading(isLoading) {
+  submitBtn.disabled = isLoading;
+  loadingBar.hidden = !isLoading;
+  if (isLoading) {
+    submitBtn.innerHTML =
+      '<span class="btn-spinner" aria-hidden="true"></span>Running query…';
+  } else {
+    submitBtn.textContent = submitBtnDefaultLabel;
+  }
+}
 
 const agentConsoleUsageHead = document.getElementById("agent-console-usage-head");
 const agentConsoleUsageBody = document.getElementById("agent-console-usage-body");
@@ -921,7 +935,7 @@ form.addEventListener("submit", async (e) => {
   const email = String(fd.get("email") || "").trim();
   const customerName = String(fd.get("customerName") || "").trim();
 
-  submitBtn.disabled = true;
+  setQueryLoading(true);
 
   let waitMessage =
     "Running query, please wait a few seconds... If a new tab opens, complete Okta sign-in";
@@ -961,7 +975,7 @@ form.addEventListener("submit", async (e) => {
       "error"
     );
   } finally {
-    submitBtn.disabled = false;
+    setQueryLoading(false);
   }
 });
 
