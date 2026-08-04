@@ -405,6 +405,12 @@ button:disabled {
   gap: 0.5rem 0.75rem;
 }
 
+/* display:flex above would otherwise override the `hidden` attribute, so a
+   filter group (e.g. INCLUDED) can be hidden when its column isn't present. */
+.results-filters-group[hidden] {
+  display: none;
+}
+
 .results-filters-heading {
   font-size: 0.8125rem;
   font-weight: 600;
