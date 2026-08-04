@@ -5,11 +5,40 @@ import express from "express";
 import snowflake from "snowflake-sdk";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SNOW_ACCOUNT = "BRAZE-XJ24206_AWS_US_EAST_1";
+// Snowflake environments the tool can talk to. The default (US) account holds
+// the global COMPANIES catalog used to resolve a customer's cluster; customers
+// on an EU cluster (EU_01 / EU_02) have their data in the EU account and are
+// queried there instead. The same email/Okta login authenticates both.
+const SNOW_ACCOUNTS = {
+  default: {
+    account: "BRAZE-XJ24206_AWS_US_EAST_1",
+    warehouse: "DATALAKE_USER_PROFILE_RESYNC_PRODUCTION",
+  },
+  eu: {
+    // Org-format identifier from Snowsight (CURRENT_ORGANIZATION_NAME /
+    // CURRENT_ACCOUNT_NAME): ORG=BRAZE, ACCOUNT=XJ24206.
+    account: "BRAZE-XJ24206",
+    warehouse: "DATALAKE_USER_PROFILE_RESYNC_PRODUCTION",
+  },
+};
+const DEFAULT_ACCOUNT_KEY = "default";
+
+// Clusters whose data lives in the EU account (normalized: separators stripped).
+const EU_CLUSTERS = new Set(["EU01", "EU02"]);
+
+/** Maps a customer's CLUSTER value to the Snowflake account key that holds their data. */
+function accountKeyForCluster(cluster) {
+  const normalized = String(cluster ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  return EU_CLUSTERS.has(normalized) ? "eu" : DEFAULT_ACCOUNT_KEY;
+}
+
 const AUTH_KEYS_FILE = path.join(__dirname, "snowflake-auth-keys.json");
 
 function authKey(email) {
-  return `${SNOW_ACCOUNT}::${email}`;
+  // Namespaced by the default account so previously persisted keys stay valid.
+  return `${SNOW_ACCOUNTS[DEFAULT_ACCOUNT_KEY].account}::${email}`;
 }
 
 async function loadEstablishedAuthKeys() {
@@ -537,9 +566,11 @@ function normalizeUsagePayload(raw) {
   return normalized;
 }
 
-/** One live Snowflake connection per server process (per email). Avoids spawning snowsql, which re-runs Okta every time. */
+/** Live Snowflake connections for the current email, keyed by account key
+ * ("default" / "eu"). The same login authenticates each; a separate browser
+ * sign-in may appear the first time each account is used. */
 let activeEmail = null;
-let activeConnection = null;
+const connections = new Map();
 
 /**
  * In-memory cache backing the customer-name type-ahead. Holds the full list of
@@ -588,41 +619,79 @@ function destroyConnection(conn) {
   });
 }
 
-async function ensureSnowflakeConnection(email) {
+async function destroyAllConnections() {
+  for (const conn of connections.values()) {
+    await destroyConnection(conn);
+  }
+  connections.clear();
+}
+
+async function ensureSnowflakeConnection(email, accountKey = DEFAULT_ACCOUNT_KEY) {
   if (activeEmail !== email) {
-    await destroyConnection(activeConnection);
-    activeConnection = null;
+    await destroyAllConnections();
     activeEmail = email;
-    // The type-ahead cache is keyed to a single connection/email, so drop it
-    // whenever we switch users.
+    // The type-ahead cache is keyed to the connected email, so drop it whenever
+    // we switch users.
     companyNamesCache = null;
     companyNamesCacheEmail = null;
     companyNamesLoading = null;
   }
 
-  if (activeConnection?.isUp()) {
+  const existing = connections.get(accountKey);
+  if (existing?.isUp()) {
     try {
-      if (await activeConnection.isValidAsync()) {
-        return activeConnection;
+      if (await existing.isValidAsync()) {
+        return existing;
       }
     } catch {
       /* reconnect */
     }
-    await destroyConnection(activeConnection);
-    activeConnection = null;
+    await destroyConnection(existing);
+    connections.delete(accountKey);
+  }
+
+  const target = SNOW_ACCOUNTS[accountKey];
+  if (!target) {
+    throw new Error(`Unknown Snowflake account key: ${accountKey}`);
   }
 
   const conn = snowflake.createConnection({
-    account: SNOW_ACCOUNT,
+    account: target.account,
     username: email,
     authenticator: "EXTERNALBROWSER",
-    warehouse: "DATALAKE_USER_PROFILE_RESYNC_PRODUCTION",
+    warehouse: target.warehouse,
     clientSessionKeepAlive: true,
     clientStoreTemporaryCredential: true,
   });
 
-  await conn.connectAsync();
-  activeConnection = conn;
+  try {
+    await conn.connectAsync();
+  } catch (err) {
+    console.error(
+      `Snowflake connectAsync failed for the "${accountKey}" account (${target.account}):`,
+      err
+    );
+    await destroyConnection(conn);
+    throw new Error(
+      `Could not connect to the ${accountKey} Snowflake account (${target.account}). ` +
+        `Check the account identifier is correct and that you completed the browser sign-in. Details: ${
+          err && typeof err === "object" && "message" in err ? err.message : err
+        }`
+    );
+  }
+
+  // connectAsync can resolve without a live session (e.g. the browser sign-in
+  // wasn't completed). Guard against caching a dead connection, which would
+  // otherwise surface later as the cryptic "connection was never established".
+  if (!conn.isUp()) {
+    await destroyConnection(conn);
+    throw new Error(
+      `Snowflake sign-in to the ${accountKey} account (${target.account}) did not complete. ` +
+        `If a browser tab opened, finish the Okta sign-in and try again; otherwise verify the account identifier.`
+    );
+  }
+
+  connections.set(accountKey, conn);
   return conn;
 }
 
@@ -664,20 +733,53 @@ function executeUnifiedQuery(conn, sqlText) {
   });
 }
 
-async function runSnowflakeQuery(email, sqlText) {
-  const conn = await ensureSnowflakeConnection(email);
+/** Executes a query and resolves its raw result rows (used for the cluster probe). */
+function executeRows(conn, sqlText) {
+  return new Promise((resolve, reject) => {
+    conn.execute({
+      sqlText,
+      complete: (err, stmt, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      },
+    });
+  });
+}
+
+/** Lightweight lookup (run on the default/US account, which holds the global
+ * COMPANIES catalog) to read a customer's cluster before routing the full query. */
+function buildClusterLookupQuery(customerName) {
+  const safeName = escapeSqlString(customerName);
+  return `SELECT CLUSTER
+    FROM GROWTH_BRAZE_FOUNDATIONS.MONGO_PLATFORM.COMPANIES
+    WHERE UPPER(TRIM(COMPANY_NAME)) = UPPER(TRIM('${safeName}'))
+       OR UPPER(TRIM(SALESFORCE_ACCOUNT)) = UPPER(TRIM('${safeName}'))
+    LIMIT 1`;
+}
+
+/** Resolves which Snowflake account key holds the customer's data, by probing
+ * their cluster on the default account. Falls back to the default account when
+ * the customer/cluster can't be resolved. */
+async function resolveAccountKey(email, customerName) {
+  const conn = await ensureSnowflakeConnection(email, DEFAULT_ACCOUNT_KEY);
+  const rows = await executeRows(conn, buildClusterLookupQuery(customerName));
+  const cluster = rows.length > 0 ? rows[0].CLUSTER : null;
+  return accountKeyForCluster(cluster);
+}
+
+const SESSION_DEAD_RE =
+  /390114|390100|session expired|JWT token is invalid|Connection already terminated|not connected/i;
+
+async function runSnowflakeQuery(email, sqlText, accountKey = DEFAULT_ACCOUNT_KEY) {
+  const conn = await ensureSnowflakeConnection(email, accountKey);
   try {
     return await executeUnifiedQuery(conn, sqlText);
   } catch (err) {
     const msg = err && typeof err === "object" && "message" in err ? String(err.message) : String(err);
-    const sessionLikelyDead =
-      /390114|390100|session expired|JWT token is invalid|Connection already terminated|not connected/i.test(
-        msg
-      );
-    if (sessionLikelyDead) {
-      await destroyConnection(activeConnection);
-      activeConnection = null;
-      const conn2 = await ensureSnowflakeConnection(email);
+    if (SESSION_DEAD_RE.test(msg)) {
+      await destroyConnection(connections.get(accountKey));
+      connections.delete(accountKey);
+      const conn2 = await ensureSnowflakeConnection(email, accountKey);
       return executeUnifiedQuery(conn2, sqlText);
     }
     throw err;
@@ -697,7 +799,7 @@ app.get("/api/session", (req, res) => {
   }
   const key = authKey(email);
   const hasFileRecord = establishedAuthKeys.has(key);
-  const liveForEmail = activeEmail === email && activeConnection?.isUp();
+  const liveForEmail = activeEmail === email && connections.get(DEFAULT_ACCOUNT_KEY)?.isUp();
   res.json({
     snowflakeSessionReused: hasFileRecord || Boolean(liveForEmail),
   });
@@ -739,7 +841,8 @@ app.get("/api/suggest", async (req, res) => {
   // never open a new connection here, so typing can't trigger an Okta prompt -
   // suggestions simply switch on once a session exists (i.e. after the first
   // query has authenticated this email).
-  const connectionUp = activeEmail === email && Boolean(activeConnection?.isUp());
+  const defaultConn = connections.get(DEFAULT_ACCOUNT_KEY);
+  const connectionUp = activeEmail === email && Boolean(defaultConn?.isUp());
   if (!connectionUp) {
     return res.json({ suggestions: [], needsConnection: true });
   }
@@ -748,7 +851,7 @@ app.get("/api/suggest", async (req, res) => {
     if (companyNamesCache === null || companyNamesCacheEmail !== email) {
       if (!companyNamesLoading) {
         companyNamesCacheEmail = email;
-        const conn = activeConnection;
+        const conn = defaultConn;
         companyNamesLoading = runSerialized(() => loadCompanyNames(conn))
           .then((entries) => {
             companyNamesCache = entries;
@@ -794,13 +897,18 @@ app.post("/api/query", async (req, res) => {
     return res.status(400).json({ error: "Customer Name is required." });
   }
 
-  const query = buildUnifiedQuery(customerName);
   const key = authKey(email);
   const snowflakeSessionReused =
-    establishedAuthKeys.has(key) || (activeEmail === email && activeConnection?.isUp());
+    establishedAuthKeys.has(key) ||
+    (activeEmail === email && Boolean(connections.get(DEFAULT_ACCOUNT_KEY)?.isUp()));
 
   try {
-    const usage = await runSerialized(() => runSnowflakeQuery(email, query));
+    const usage = await runSerialized(async () => {
+      // Resolve the customer's cluster on the default account, then run the
+      // full query against whichever environment holds their data.
+      const accountKey = await resolveAccountKey(email, customerName);
+      return runSnowflakeQuery(email, buildUnifiedQuery(customerName), accountKey);
+    });
     if (!establishedAuthKeys.has(key)) {
       establishedAuthKeys.add(key);
       await persistAuthKeys(establishedAuthKeys);
