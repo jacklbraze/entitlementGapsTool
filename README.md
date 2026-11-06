@@ -5,7 +5,7 @@
 5. Navigate to the directory in terminal and type `npm install`
 6. Type `npx patch-package`
 7. Type `node server.js`
-8. Open `http://localhost:3000` in chrome
+8. Your browser opens `http://localhost:3000` automatically (if it doesn't, open it in Chrome yourself)
 9. Enter your Braze email address and click "Authenticate" and wait for Snowflake to finish authentication
 10. Enter the customer account name or Salesforce account ID and click Run query
 

@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -925,8 +926,24 @@ app.post("/api/query", async (req, res) => {
 
 const port = Number(process.env.PORT) || 3000;
 app.listen(port, () => {
-  console.log(`Open http://localhost:${port}`);
+  const url = `http://localhost:${port}`;
+  console.log(`Open ${url}`);
   console.log(
     "Using Snowflake Node.js driver with a persistent connection (Okta opens once per email until the server restarts or the session ends)."
   );
+  // Skip under `npm run dev`: --watch restarts on every save and would open a new tab each time.
+  if (!process.execArgv.includes("--watch")) openBrowser(url);
 });
+
+function openBrowser(url) {
+  const [command, args] =
+    process.platform === "darwin"
+      ? ["open", [url]]
+      : process.platform === "win32"
+        ? ["cmd", ["/c", "start", "", url]]
+        : ["xdg-open", [url]];
+  // Best effort: if no browser can be launched, the URL is still printed above.
+  spawn(command, args, { stdio: "ignore", detached: true })
+    .on("error", () => {})
+    .unref();
+}
